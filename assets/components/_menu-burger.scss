@@ -1,0 +1,74 @@
+/* Menu Burger masqué normalement */
+.menu-burger {
+    display: none;
+    /* Affichage en mode medium/large */
+    @media all and (max-width : $maxWidthMedium) {
+        width:36px;
+        height:36px;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-content: space-around;
+        padding: 5px;
+        position: relative;
+
+        &>span {
+            width: 30px;
+            display: block;
+            height: 3px;
+            background-color: var(--fourthColor);
+        }
+    }
+}
+/* Croix du menu Burger masqué normalement */
+.menu-burger-close {
+    @media all and (max-width : $maxWidthMedium) {
+        &>span {
+            position: absolute;
+            transition: transform 400ms linear;
+        }
+        span.burger-top {
+            transform: rotate(45deg);
+            top: 22px;
+            width:40px;
+        }
+        span.burger-middle {
+            display: none;
+        }
+        span.burger-bottom {
+            transform: rotate(-45deg);
+            top: 22px;
+            width:40px;
+        }
+    }
+}
+/* Navigation Menu Burger masqué normalement */
+.navigation-burger {
+    display: none;
+    /* Affichage en mode smartphone */
+    @media all and (max-width : $maxWidthMedium) {
+        width:100%;
+        height: 100vh;
+        background-color: var(--firstColor);
+        display: flex;
+        padding: 5px;
+        position: fixed;
+        top: 80px;
+        right: 0px;
+        z-index: 11;
+        transition: transform 400ms linear;
+        transform: translateX(100%);
+    }
+}
+
+/* Transformation pour l'affichage du header en smartphone */
+.navigation-burger-affiche {
+    @media all and (max-width : $maxWidthMedium) {
+        transform: translateX(0%);
+    }
+}
+.navigation-classique {
+    @media all and (max-width : $maxWidthMedium) {
+        display: none;
+    }
+}

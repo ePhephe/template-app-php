@@ -1,0 +1,143 @@
+@use "sass:map";
+
+/* Fonction de calcul des largeurs en fonction des colonnes et de la gouttière */
+@function large($numberColumn, $i) {
+  @return calc((100% / ($numberColumn / $i)) - ((($numberColumn / $i) - 1) * var(--gouttiere)) / ($numberColumn / $i));
+}
+
+/* Mixin pour généré les différentes width */
+@mixin largeur-modifier($numberColumn) {
+  @for $i from 1 to $numberColumn+1 {
+    &-#{$i}-#{$numberColumn} {
+      width: large($numberColumn, $i);
+    }
+  }
+}
+
+/* Une classe full et une fit pour de la mise en page*/
+.full {
+  width: $widthFull;
+}
+
+.fit {
+  width: -moz-fit-content;
+  width: fit-content;
+}
+
+/* Format Large*/
+.large {
+  @include largeur-modifier($numberColumnDesktop);
+}
+
+/* Format Medium */
+@media all and (min-width : $maxWidthSmall) and (max-width : $maxWidthMedium) {
+  .medium {
+    @include largeur-modifier($numberColumnTablet);
+  }
+
+  .container-marges-tablet {
+    padding-left: var(--marginTablet);
+    padding-right: var(--marginTablet);
+  }
+
+  .container-marges-left-tablet {
+    padding-left: var(--marginTablet);
+  }
+
+  .container-marges-right-tablet {
+    padding-right: var(--marginTablet);
+  }
+}
+
+/* Format Small */
+@media all and (max-width : $maxWidthSmall) {
+  .small {
+    @include largeur-modifier($numberColumnSmartphone);
+  }
+
+  .container-marges-smartphone {
+    padding-left: var(--marginSmartphone);
+    padding-right: var(--marginSmartphone);
+  }
+
+  .container-marges-left-smartphone {
+    padding-left: var(--marginSmartphone);
+  }
+
+  .container-marges-right-smartphone {
+    padding-left: var(--marginSmartphone);
+  }
+}
+
+/* Container */
+.container-full {
+  max-width: $widthContainer1200;
+  width:100%;
+  margin-left: auto;
+  margin-right: auto;
+  @media all and (max-width : $maxWidthLarge) {
+    max-width: $widthContainer1000;
+  }
+  @media all and (max-width : $maxWidthMedium) {
+    max-width: $widthContainer800;
+  }
+  @media all and (max-width : $widthContainer800) {
+    padding-left: var(--marginTablet);
+    padding-right: var(--marginTablet);
+  }
+  @media all and (max-width : $maxWidthSmall) {
+    max-width: $widthContainer400;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  @media all and (max-width : $widthContainer400) {
+    padding-left: var(--marginSmartphone);
+    padding-right: var(--marginSmartphone);
+  }
+}
+
+/************* Marges et Paddings Génériques **************/
+/* Tableau de définition pour la génération */
+$cote: (
+  1: "-top",
+  2: "-bottom",
+  3: "-left",
+  4: "-right",
+  5: ""
+);
+
+/* Fonction de génération de marges/padding par multiple de 10 */
+@function marges($i) {
+  @return calc($i*10px);
+}
+
+/* Mixin pour généré les différentes marges */
+@mixin marges-generiques() {
+  @for $j from 1 to 6 {
+    @for $i from 1 to 11 {
+      &#{map.get($cote,$j)}-#{marges($i)} {
+        margin#{map.get($cote,$j)}: marges($i);
+      }
+    }
+  }
+}
+
+/* Mixin pour généré les différents padding */
+@mixin padding-generiques() {
+  @for $j from 1 to 6 {
+    @for $i from 1 to 11 {
+      &#{map.get($cote,$j)}-#{marges($i)} {
+        padding#{map.get($cote,$j)}: marges($i);
+      }
+    }
+  }
+}
+
+/* Génération des marges */
+.margin {
+  @include marges-generiques();
+}
+/* Génération des padding */
+.padding {
+  @include padding-generiques();
+}

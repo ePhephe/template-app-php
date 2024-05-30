@@ -1,0 +1,40 @@
+/* Classes pour les flexbox */
+.flex {
+    display: flex;
+    flex-wrap: wrap;
+}
+.direction-column {
+    flex-direction: column;
+}
+.justify-center {
+    justify-content: center;
+}
+.justify-between {
+    justify-content: space-between;
+}
+.justify-around {
+    justify-content: space-around;
+}
+.justify-end {
+    justify-content: flex-end;
+}
+.align-center {
+    align-items: center;
+}
+.content-center {
+    align-content: center;
+}
+.gap {
+    gap: var(--gouttiere);
+}
+
+/* Classes spécifiques pour de la mise en page en format medium/small */
+@media all and (max-width : $maxWidthMedium) {
+    .direction-column-reverse-responsive {
+        flex-direction: column-reverse;
+    }
+
+    .direction-column-responsive {
+        flex-direction: column;
+    }
+}

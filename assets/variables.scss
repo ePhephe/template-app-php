@@ -1,0 +1,65 @@
+@font-face {
+    font-family: 'Montserrat';
+    src: url("../fonts/Montserrat/Montserrat-VariableFont_wght.ttf");
+}
+
+@font-face {
+    font-family: 'Roboto Regular';
+    src: url("../fonts/Roboto/Roboto-Regular.ttf");
+}
+
+@font-face {
+    font-family: 'Roboto Light';
+    src: url("../fonts/Roboto/Roboto-Light.ttf");
+}
+
+
+:root {
+    // TYPOGRAPHIE
+    --fontTitre: 'Montserrat';
+    --fontTexte: 'Roboto Regular';
+    --fontAlt: 'Roboto Light';
+
+    // Palette de couleurs 
+    --firstColor: #002535;
+    --secondColor: #2A83A1;
+    --thirdColor: #6ECBDA;
+    --fourthColor: #E62F1D;
+    --fifthColor: #C92E1C;
+
+    // Couleurs standards 
+    --succesColor: hsl(113, 53%, 53%);
+    --infoColor: hsl(202, 100%, 61%);
+    --errorColor: hsl(0, 100%, 61%);
+    --succesColorLight: hsl(112, 35%, 87%);
+    --infoColorLight: hsl(202, 100%, 92%);
+    --errorColorLight: hsl(0, 100%, 96%);
+
+    // Gouttières et Espacements 
+    --gouttiere: 20px;
+    --marginDesktop: 120px;
+    --marginTablet: 40px;
+    --marginSmartphone: 20px;
+    --paddingButton: 12px 32px; 
+
+    // RADIUS 
+    --radiusLarge: 30px;
+    --radiusMedium: 20px;
+    --radiusSmall: 10px;
+    --radiusRond: 50%;
+}
+
+// Variables SCSS 
+$numberColumnDesktop: 12;
+$numberColumnTablet: 8;
+$numberColumnSmartphone: 4;
+
+$widthFull: 100%;
+
+$widthContainer1200: 1200px;
+$maxWidthLarge: 1280px;
+$widthContainer1000: 1024px;
+$maxWidthMedium: 1080px;
+$widthContainer800: 800px;
+$maxWidthSmall: 500px;
+$widthContainer400: 350px;
