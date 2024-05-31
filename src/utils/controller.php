@@ -15,13 +15,13 @@ class _controller {
     // Liste des objets manipulés par le controller
     protected array $objects = []; // ["objet1" => ["action"1,"action2"...],"objet2" => ["action"1,"action2"...]]
     // Paramètres du controller
-    protected array $params = []; // ["nom_param1"=>["method"=>"POST","required"=>true],"nom_param2"=>["method"=>"POST","required"=>false]]
+    protected array $paramEntree = []; // ["nom_param1"=>["method"=>"POST","required"=>true],"nom_param2"=>["method"=>"POST","required"=>false]]
     // Type de retour
     protected string $typeRetour = "template"; // json, fragment ou template (défaut)
     // Retour du controller
     protected string $retour = "";
-    // Contenu du controller
-    protected string $content = "";
+    // Paramètres en sortie
+    protected array $paramSortie = []; // ["nom_param1"=>["method"=>"POST","required"=>true],"nom_param2"=>["method"=>"POST","required"=>false]]
     // Besoin d'être connecté
     protected bool $connected = true; // True par défaut
     // Objet de la session

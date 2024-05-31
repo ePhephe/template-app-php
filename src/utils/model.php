@@ -1,6 +1,26 @@
 <?php
 
 /**
+ * 
+ * Attributs disponibles
+ * @property $table Tableau des champs
+ * @property $champ_id Clé de la table
+ * @property $links Lien avec les autres tables
+ * @property $fields Liste des champs
+ * @property $actions Nom des controllers d'action sur l'objet
+ * @property $id Identifiant de l'objet
+ * 
+ * Méthodes disponibles
+ * @method is() Retourne l'information si l'objet est chargé
+ * @method get() Retourne l'objet du champ passé en paramètre
+ * @method getToArray() Retourne la valeur pour tous les champs, sous forme d'un tableau
+ * @method id() Retourne l'identifiant de l'objet courant
+ * @method champ_id() Retourne le champ identifiant de l'objet courant
+ * @method set() Définit la valeur d'un champ
+ * 
+ */
+
+/**
  * Classe _model : classe générique des objets du modèle de données
  */
 
@@ -10,41 +30,20 @@ class _model {
      * Attributs
      */
 
-    //Nom de la table dans la BDD
-     protected $table = "";
-     //Clé de la table
-     protected $champ_id = "";
-     //Lien avec les autres tables
-     protected $links = [];
-     //Liste des champs
-     // Chaque champ doit être sous la forme ["nom_champ" => ["type"=>"type_champ","libelle"=>"libelle_champ",...]]
-     protected $fields = [];
-    /**
-     * "type"=>"text" - Type du champ
-     * "type_input"=>"text" - Type du champ en HTML
-     * "nom_objet" => "produit" - Nom de la classe de l'objet lié (dans le cas d'un type object)
-     * "libelle"=>"Numéro de série" - Libellé à afficher du champ
-     * "unique" => "N" - Est-ce que la valeur du champ doit être unique ?
-     * "max" => 100 - Valeur maximale possible
-     * "min" => 10 - Valeur minimale possible
-     * "max_length" => 15 - Longueur maximale du champ
-     * "min_length" => 15 - Longueur minimale du champ
-     * "case" => "UPPER" - Casse à respecter pour le champ UPPER (Majuscules) LOWER (Minuscules) sinon n'existe pas
-     * "format" => "d/m/Y H:i:s" - Format à respecter (date, regex... )
-     * "liste_cle_valeur" => [ "cle" => "valeur"] - Liste des valeurs à afficher pour les clés du champs définis
-     */
+    // Nom de la table dans la BDD
+    protected string $table = "";
+    // Clé de la table
+    protected string $champ_id = "";
+    // Lien avec les autres tables
+    protected array $links = []; // ["nom_table" => "champ_lien_vers_table"]
+    // Liste des champs
+    protected array $fields = []; // ["nom_champ1" => objet_champ1,"nom_champ2" => objet_champ2]
 
-    //Nom des controllers d'action sur l'objet
-    protected $actions = [];
+    // Nom des controllers d'action sur l'objet
+    protected array $actions = []; // ["action" => "nom_controller"]
     
-    //Identifiant de l'objet
-    protected $id = 0;
-    //Valeurs des champs
-    protected $values = [];
-    
-    //Base de données ouverte
-    protected static $bdd;
-
+    // Identifiant de l'objet
+    protected int $id = 0;
 
     /**
      * Constructeur
@@ -57,11 +56,42 @@ class _model {
      * @return void
      */
     function __construct($id = null) {
+        // On définit les champs de l'objet
+        $this->define();
         // Si l'identifiant n'est pas null
         if ( ! is_null($id) && $id != 0) {
             //On charge l'objet
             $this->load($id);
         }
+    }
+    
+    /**
+     * Ajoute le champ à l'objet
+     *
+     * @param array $arrayInfoChamp Tableau des informations du champ
+     * @return void
+     */
+    protected function addField($arrayInfoChamp) {
+        // On instancie un objet _field du champ
+        $this->fields[$arrayInfoChamp["name"]] = new _field(
+            
+        );
+    }
+    
+    /**
+     * Définit les champs de l'objet
+     *
+     * @return void
+     */
+    protected function define() {
+        // On récupère les informations dans un fichier json
+        $json = file_get_contents($this->table . ".json");
+        $arrayChamps = json_decode($json);
+
+        // On parcourt tous les champs présent dans le fichier
+
+        // On appelle la méthode pour ajouter le champ
+        $this->addField($infosChamp);
     }
 
     /**
@@ -82,7 +112,7 @@ class _model {
      */
     
     /**
-     * Retourne la valeur pour l'attribut passé en paramètre
+     * Retourne l'objet du champ passé en paramètre
      *
      * @param  string $fieldName - Nom de l'attribut
      * @return mixed Valeur de l'attribut
@@ -92,48 +122,7 @@ class _model {
         if(method_exists($this,"get_$fieldName"))
             return call_user_func([$this,"get_$fieldName"]);
 
-        // Si la valeur existe (isset(....)) retourne la valeur sinon on retourne une valeur par défaut en fonction du type du champ
-        if (isset($this->values[$fieldName])) {
-            //On regarde si le type du champ est un objet(lien)
-            if($this->fields[$fieldName]["type"] === "object") {
-                //On vérifie si on a stocké un objet pour ce champ dans le tableau values avec la clé name_object
-                if(!isset($this->values[$fieldName."_object"])) {
-                    //Si name_object n'existe pas, on créé l'objet et on le stocke à cet emplacement
-                    $obj = new $this->fields[$fieldName]["nom_objet"]();
-                    $obj->load($this->values[$fieldName]);
-                    $this->values[$fieldName."_object"] = $obj;
-                }
-
-                return $this->values[$fieldName."_object"];
-            }
-            else {
-                return htmlentities($this->values[$fieldName]);
-            }
-        } else {
-            switch ($this->fields[$fieldName]["type"]) {
-                case 'text':
-                    return "";
-                case 'number':
-                    return 0;
-                case 'object':
-                    return new $this->fields[$fieldName]["nom_objet"]();
-                default:
-                    return "";
-            }
-        }
-    }
-
-    /**
-     * Retourne la valeur affichable pour l'attribut passé en paramètre dnas le cas d'une liste clé valeur
-     *
-     * @param  string $fieldName - Nom de l'attribut
-     * @return mixed Valeur de l'attribut
-     */
-    function getLibelle($fieldName) {
-        if(isSet($this->fields[$fieldName]["liste_cle_valeur"]))
-            return $this->fields[$fieldName]["liste_cle_valeur"][$this->values[$fieldName]];
-        else
-            return $this->values[$fieldName];
+        return $this->fields[$fieldName];
     }
 
     /**
@@ -141,35 +130,16 @@ class _model {
      *
      * @return array Ensemble des champs dans un tableau associatif
      */
-    function getToTab() {
-        //Initialisation du tableau
+    function getToArray() {
+        // Initialisation du tableau
         $arrayFields = [];
-        //On parcourt tous les champs
-        foreach ($this->fields as $cle => $champ) {
-            if($this->fields[$cle]["type"] === "object") {
-                //On vérifie si on a stocké un objet pour ce champ dans le tableau values avec la clé name_object
-                if(!isset($this->values[$cle."_object"])) {
-                    //Si name_object n'existe pas, on créé l'objet et on le stocke à cet emplacement
-                    $obj = new $this->fields[$cle]["nom_objet"]();
-                    $obj->load($this->values[$cle]);
-                }
-                else {
-                    $obj = $this->values[$cle."_object"];
-                }
 
-                $arrayFields[$cle] = $this->values[$cle];
-                $arrayFields[$cle."_object"] = $obj->getToTab();
-            }
-            else {
-                if(isSet($this->fields[$cle]["liste_cle_valeur"])) {
-                    $arrayFields[$cle] = $this->values[$cle];
-                    $arrayFields[$cle."_libelle"] = $this->fields[$cle]["liste_cle_valeur"][$this->values[$cle]];
-                }
-                else {
-                    $arrayFields[$cle] = htmlentities($this->values[$cle]);
-                }
-            }
+        // On parcourt tous les champs
+        foreach ($this->fields as $cle => $objField) {
+            $arrayFields[$cle] = $objField->getToArray();
         }
+
+        // On ajoute l'identifiant
         $arrayFields["id"] = $this->id();
 
         return $arrayFields;
@@ -225,48 +195,8 @@ class _model {
         if(method_exists($this,"set_$fieldName"))
             return call_user_func([$this,"set_$fieldName"],$value);
 
-        if(array_key_exists("max",$this->fields[$fieldName])) {
-            if($value > $this->fields[$fieldName]["max"])                
-                return false;
-        }
-
-        if(array_key_exists("min",$this->fields[$fieldName])) {
-            if($value < $this->fields[$fieldName]["min"])
-                return false;
-        }
-
-        if(array_key_exists("unique",$this->fields[$fieldName])) {
-            if($this->fields[$fieldName]["unique"] === "O"){
-                if(!$this->verifUnicite($fieldName, $value)) {
-                    return false;
-                }
-            }
-        }
-
-        if(array_key_exists("format",$this->fields[$fieldName])) {
-            if(!preg_match($this->fields[$fieldName]["format"],$value)){
-                return false;
-            }
-        }
-
-        if(array_key_exists("password",$this->fields[$fieldName])) {
-            $value = password_hash($value,PASSWORD_BCRYPT);
-        }
-
-        if(array_key_exists("text",$this->fields[$fieldName])) {
-            $value = html_entity_decode($value);
-        }
-        
-        $this->values[$fieldName] = $value;
-
-        if($this->fields[$fieldName]["type"] === "object") {
-            // On instancie un nouvel objet à jour
-            $obj = new $this->fields[$fieldName]["nom_objet"]();
-            $obj->load($value);
-            $this->values[$fieldName."_object"] = $obj;
-        }
-
-        return true;
+        // On valorise la valeur de l'objet field du champ concerné
+        return $this->fields[$fieldName]->setValue($value);
     }
 
     /**
@@ -279,7 +209,7 @@ class _model {
      */
     function __set($name,$value){
         if(array_key_exists($name,$this->fields)){
-            $this->values[$name] = $value;
+            $this->fields[$name]->setValue($value);
         }
     }
     
