@@ -17,67 +17,6 @@ class utilisateur extends _model {
     //Nom des champs clés de connexion d'un utilisateur
     protected $fieldLogin = "u_email";
     protected $fieldPassword = "u_password";
-    //Liste des champs
-    protected $fields = [ 
-        "u_nom" => [
-            "type"=>"text",
-            "type_input" => "text",
-            "libelle"=>"Nom",
-            "max_length" => 100
-        ],
-        "u_prenom" => [
-            "type"=>"text",
-            "type_input" => "text",
-            "libelle"=>"Prénom",
-            "max_length" => 150
-        ],
-        "u_email" =>  [
-            "type"=>"text",
-            "type_input" => "email",
-            "libelle"=>"E-mail",
-            "unique" => "O",
-            "max_length" => 325,
-            "format" => "/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/"
-        ],
-        "u_password" =>  [
-            "type"=>"text",
-            "type_input" => "password",
-            "password" => true,
-            "libelle"=>"Mot de passe",
-            "max_length" => 20,
-            "min_length" => 8,
-            "format" => "/^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/"
-        ],
-        "u_role_user" =>  [
-            "type"=>"text",
-            "type_input" => "select",
-            "libelle"=>"Rôle de l'utilisateur",
-            "liste_cle_valeur" => [
-                "ROLE_TECHNICIEN" => "Technicien",
-                "ROLE_VENDEUR" => "Vendeur",
-                "ROLE_CLIENT" => "Client"
-            ]
-        ],
-        "u_selector_reini_password" =>  [
-            "type"=>"text"
-        ],
-        "u_token_reini_password" =>  [
-            "type"=>"text"
-        ],
-        "u_expiration_reini_password" =>  [
-            "type"=>"datetime",
-            "format" => "Y-m-d H:i:s"
-        ]
-    ]; 
-
-    //Nom des controllers d'action sur l'objet
-    protected $actions = [
-        "create" => "creer_utilisateur",
-        "read"  => "detail_utilisateur",
-        "update" => "modifier_utilisateur",
-        "delete" => "supprimer_utilisateur",
-        "list" => "lister_utilisateurs"
-    ];
 
     //URLs de gestion de la connexion
     protected $arrayURL = [
@@ -123,23 +62,25 @@ class utilisateur extends _model {
      * @return boolean - True si la connexion réussi sinon False
      */
     function connexion($strLogin,$strPassword){
-        //On construit la requête SELECT
+        //On construit la requête
         $strRequete = "SELECT `$this->champ_id`, `$this->fieldPassword` FROM `$this->table` WHERE `$this->fieldLogin` = :login ";
         $arrayParam = [
             ":login" => $strLogin
         ];
 
-        //On prépare la requête
-        $bdd = static::bdd();
-        $objRequete = $bdd->prepare($strRequete);
+        // On instancie un objet requête
+        $objRequete = new _requete();
+        // On passe notre requête et nos paramètres
+        $objRequete->set("requete",$strRequete);
+        $objRequete->set("params",$arrayParam);
 
         //On exécute la requête avec les parmaètres
-        if ( ! $objRequete->execute($arrayParam)) {
+        if ( ! $objRequete->execution()) {
             return false;
         }
 
         //On récupère les résultats
-        $arrayResultats = $objRequete->fetchAll(PDO::FETCH_ASSOC);
+        $arrayResultats = $objRequete->objet->fetchAll(PDO::FETCH_ASSOC);
         //Si le tableau est vide, on retourne une erreur (false)
         if (empty($arrayResultats)) {
             return false;
@@ -148,6 +89,7 @@ class utilisateur extends _model {
         //On récupère la ligne de résultat dans une variable
         $arrayInfos = $arrayResultats[0];
 
+        // On vérifie le mot de passe
         if(password_verify($strPassword,$arrayInfos[$this->fieldPassword])) {
             $this->load($arrayInfos[$this->champ_id]);
             return true;
@@ -168,11 +110,11 @@ class utilisateur extends _model {
         $template = '<form action="'.$this->arrayURL["login"].'" method="post" id="form_connexion">
             <div>
                 <label for="login">Identifiant : </label>
-                <input type="'.$this->fields[$this->fieldLogin]["type_input"].'" name="login" id="login">
+                <input type="'.$this->fields[$this->fieldLogin]->get("input")["type"].'" name="login" id="login">
             </div>
             <div>
                 <label for="password">Mot de passe : </label>
-                <input type="'.$this->fields[$this->fieldPassword]["type_input"].'" name="password" id="password">
+                <input type="'.$this->fields[$this->fieldPassword]->get("input")["type"].'" name="password" id="password">
             </div>
             <input type="submit" value="Connexion">
         </form>
@@ -193,7 +135,7 @@ class utilisateur extends _model {
         $template = '<form action="'.$this->arrayURL["reini"].'" method="post" id="form_reini_password">
             <div>
                 <label for="login">Identifiant : </label>
-                <input type="'.$this->fields[$this->fieldLogin]["type_input"].'" name="login" id="login">
+                <input type="'.$this->fields[$this->fieldLogin]->get("input")["type"].'" name="login" id="login">
             </div>
             <input type="submit" value="Réinitialiser">
         </form>
@@ -214,15 +156,15 @@ class utilisateur extends _model {
         $template = '<form action="'.$this->arrayURL["newPassword"].'?'.http_build_query(['selector' => $strSelector,'validator' => $strToken]).'" method="post" id="form_new_password">
             <div>
                 <label for="login">Identifiant : </label>
-                <input type="'.$this->fields[$this->fieldLogin]["type_input"].'" name="login" id="login">
+                <input type="'.$this->fields[$this->fieldLogin]->get("input")["type"].'" name="login" id="login">
             </div>
             <div>
                 <label for="password">Mot de passe : </label>
-                <input type="'.$this->fields[$this->fieldPassword]["type_input"].'" name="password" id="password">
+                <input type="'.$this->fields[$this->fieldPassword]->get("input")["type"].'" name="password" id="password">
             </div>
             <div>
                 <label for="confirmPassword">Confirmation du mot de passe : </label>
-                <input type="'.$this->fields[$this->fieldPassword]["type_input"].'" name="confirmPassword" id="confirmPassword">
+                <input type="'.$this->fields[$this->fieldPassword]->get("input")["type"].'" name="confirmPassword" id="confirmPassword">
             </div>
             <input type="submit" value="Enregistrer">
         </form>
@@ -245,17 +187,19 @@ class utilisateur extends _model {
             ":login" => $strLogin
         ];
 
-        //On prépare la requête
-        $bdd = static::bdd();
-        $objRequete = $bdd->prepare($strRequete);
+        // On instancie un objet requête
+        $objRequete = new _requete();
+        // On passe notre requête et nos paramètres
+        $objRequete->set("requete",$strRequete);
+        $objRequete->set("params",$arrayParam);
 
         //On exécute la requête avec les parmaètres
-        if ( ! $objRequete->execute($arrayParam)) {
+        if ( ! $objRequete->execution()) {
             return false;
         }
 
         //On récupère les résultats
-        $arrayResultats = $objRequete->fetchAll(PDO::FETCH_ASSOC);
+        $arrayResultats = $objRequete->objet->fetchAll(PDO::FETCH_ASSOC);
         //Si le tableau est vide, on retourne une erreur (false)
         if (empty($arrayResultats)) {
             return false;
@@ -288,10 +232,12 @@ class utilisateur extends _model {
             ':expiration' => $dateExpiration->format('Y-m-d H:i:s')
         ];
 
-        //On prépare la requête
-        $objRequeteReini = $bdd->prepare($strRequeteReini);
+        // On passe notre requête et nos paramètres
+        $objRequete->set("requete",$strRequeteReini);
+        $objRequete->set("params",$paramReini);
+
         //On exécute la requête avec les parmaètres
-        if ( ! $objRequeteReini->execute($paramReini)) {
+        if ( ! $objRequete->execution()) {
             return false;
         }
 
@@ -321,21 +267,25 @@ class utilisateur extends _model {
      */
     function verifTokenReiniPassword($strLogin, $strSelector, $strToken){
         //On prépare la requête
-        $bdd = static::bdd();
         $strRequete = "SELECT `$this->champ_id`,`u_token_reini_password` FROM `$this->table` WHERE `u_selector_reini_password` = :selector AND `$this->fieldLogin` = :login 
             AND u_expiration_reini_password >= NOW()";
         $param = [
             ":selector" => $strSelector,
             ":login" => $strLogin
         ];
-        $objRequete = $bdd->prepare($strRequete);
+
+        // On instancie un objet requête
+        $objRequete = new _requete();
+        // On passe notre requête et nos paramètres
+        $objRequete->set("requete",$strRequete);
+        $objRequete->set("params",$param);
 
         //On exécute la requête avec les parmaètres
-        if ( ! $objRequete->execute($param)) {
+        if ( ! $objRequete->execution()) {
             return false;
         }
 
-        $arrayResults = $objRequete->fetchAll(PDO::FETCH_ASSOC);
+        $arrayResults = $objRequete->objet->fetchAll(PDO::FETCH_ASSOC);
         if (!empty($arrayResults)) {
             $calc = hash('sha256', hex2bin($strToken));
             if (hash_equals($calc, $arrayResults[0]['u_token_reini_password'])) {
