@@ -20,6 +20,7 @@
  * @method is() Retourne l'information si l'objet est chargé
  * @method set() Définit la valeur d'un attribut
  * @method setValue() Définit la valeur du champ
+ * @method setValueForm() Définit la valeur du champ à partir des informations d'un formulaire
  * @method get() Retourne la valeur pour l'attribut passé en paramètre
  * @method getValue() Retourne la valeur brute du champ
  * @method getObjet() Retourne l'objet lié au champ
@@ -43,29 +44,29 @@ class _field {
      */
 
     // Nom de la table du champ
-    protected string $table = "";
+    protected $table = "";
     // Nom du champ
-    protected string $name = "";
+    protected $name = "";
     // Type du champ
-    protected string $type = ""; // id, text, datetime, integer, float, password, email, object
+    protected $type = ""; // id, text, datetime, integer, float, password, email, object
     // Libellé du champ
-    protected string $libelle = "";
+    protected $libelle = "";
     // Nom de l'objet lié
-    protected string $nomObjet = "";
+    protected $nomObjet = "";
     // Valeur brut du champ
-    protected string $value = "";
+    protected $value = "";
     // Objet lié
-    protected object $objet;
+    protected $objet;
     // Paramètres de l'input
-    protected array $input = []; // ["name" => "", "id" => "", "placeholder" => "", "type" => "", "step" => "1/0.1/0.01", "confirmationNeeded" => true]
+    protected $input = []; // ["name" => "", "id" => "", "placeholder" => "", "type" => "", "step" => "1/0.1/0.01", "confirmationNeeded" => true]
     // Contraintes du champ
-    protected array $contraintes = []; // ["min" => "","max" => "","min_length" => "","max_length" => ""]
+    protected $contraintes = []; // ["min" => "","max" => "","min_length" => "","max_length" => ""]
     // Formats du champ
-    protected array $formats = []; // ["affichage" => "", "bdd" => "", "hmtl" => ""]
+    protected $formats = []; // ["affichage" => "", "bdd" => "", "hmtl" => ""]
     // Liste clés <=> valeur
-    protected array $listCleValeur = []; // ["cle1" => "valeur1","cle2" => "valeur2"]
+    protected $listCleValeur = []; // ["cle1" => "valeur1","cle2" => "valeur2"]
     // Valeur de champ unique
-    protected bool $unicite = false;
+    protected $unicite = false;
 
     /**
      * Méthodes
@@ -74,11 +75,30 @@ class _field {
     /**
      * Constructeur de l'objet
      *
-     * @param  integer $id Identifiant de l'objet à charger
+     * @param  object $champ Informations sur le champ à charger
      * @return void
      */
-    function __construct() {
-
+    function __construct($champ) {
+        // On récupère le nom du champ
+        $this->name = $champ->name;
+        // On récupère le type du champ
+        $this->type = $champ->type;
+        // On récupère le libellé du champ
+        $this->libelle = $champ->libelle;
+        // On récupère le nom de l'objet lié s'il y en a un
+        if(isSet($champ->nomObjet)) $this->nomObjet = $champ->nomObjet;
+        // On récupère la notion d'unicité du champ
+        $this->unicite = $champ->unicite;
+        // On récupère les contraintes sur le champ s'il y en a
+        if(isSet($champ->contraintes)) $this->contraintes = (array) $champ->contraintes;
+        // On récupère les format du champ s'il y en a
+        if(isSet($champ->formats)) $this->formats = (array) $champ->formats;
+        // On récupère la liste des clés et des valeurs pour la champ s'il y en a 
+        if(isSet($champ->listeCleValeur)) {
+            foreach ($champ->listeCleValeur as $value) {
+                $this->listCleValeur[$value->cle] = $value->valeur;
+            }
+        }
     }
 
     /**
@@ -181,6 +201,35 @@ class _field {
         }
 
         return true;
+
+    }
+
+    /**
+     * Définit la valeur du champ à partir des informations d'un formulaire
+     *
+     * @param  mixed $value Nouvelle valeur du champ
+     * @param array $arrayPOST Tableau des informations en POST
+     * @return boolean - True si la valeur est acceptée sinon False
+     */
+    function setValueForm($value,$arrayPOST){
+        //On vérifie qu'un input HTML correspond à ce champ
+        if(!empty($this->get("input"))) {
+            // Si on demande une confirmation du champ, il faut avoir le paramètre
+            if($this->get("input")["confirmationNeeded"] === true && !isSet($arrayPOST[$this->get("name")."Confirm"])){
+                return false;
+            }
+            else if ($this->get("input")["confirmationNeeded"] === true && isSet($arrayPOST[$this->get("name")."Confirm"])) {
+                if($value != $arrayPOST[$this->get("name")."Confirm"]){
+                    return false;
+                }
+            }
+            else if(isSet($arrayPOST[$this->get("name")."Hidden"])){
+                return $this->setValue($arrayPOST[$this->get("name")."Hidden"]);
+            }
+            else {
+                return $this->setValue($arrayPOST[$this->get("name")]);
+            }
+        }
 
     }
 

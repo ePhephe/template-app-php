@@ -11,23 +11,27 @@ class _controller {
      */
 
     // Nom du controller
-    protected string $name = "";
+    protected $name = "";
     // Liste des objets manipulés par le controller
-    protected array $objects = []; // ["objet1" => ["action"1,"action2"...],"objet2" => ["action"1,"action2"...]]
+    protected $objects = []; // ["objet1" => ["action"1,"action2"...],"objet2" => ["action"1,"action2"...]]
+    // Paramètres du controller attendus en entrée
+    protected $paramEntree = []; // ["nom_param1"=>["method"=>"POST","required"=>true],"nom_param2"=>["method"=>"POST","required"=>false]]
     // Paramètres du controller
-    protected array $paramEntree = []; // ["nom_param1"=>["method"=>"POST","required"=>true],"nom_param2"=>["method"=>"POST","required"=>false]]
+    protected $parametres = [];
     // Type de retour
-    protected string $typeRetour = "template"; // json, fragment ou template (défaut)
+    protected $typeRetour = "template"; // json, fragment ou template (défaut)
+    // Nom du template
+    protected $template = "";
     // Retour du controller
-    protected string $retour = "";
-    // Paramètres en sortie
-    protected array $paramSortie = []; // ["nom_param1"=>["method"=>"POST","required"=>true],"nom_param2"=>["method"=>"POST","required"=>false]]
+    protected $retour = "";
+    // Paramètres en sortie du controller
+    protected $paramSortie = []; // ["nom_param1"=>["required"=>true],"nom_param2"=>["required"=>false]]
     // Besoin d'être connecté
-    protected bool $connected = true; // True par défaut
+    protected $connected = true; // True par défaut
     // Objet de la session
-    protected _session $session;
+    protected $session;
     // Objet des permissions
-    protected _permission $permission;
+    protected $permission;
 
     /**
      * Méthodes
@@ -39,18 +43,22 @@ class _controller {
      * @param array $parametres - Tableau des paramètres passées au controller
      * @return void
      */
-    function __construct($parametres) {
+    function __construct($parametres = []) {
         // On récupère l'objet de la session
         $this->session = _session::getSession();
         // On récupère l'objet des permissions de l'application
         $this->permission = _permission::getPermission();
+        // On récupère les paramètres
+        $this->parametres = $parametres;
 
-        // On lance la vérification de la session
-        $this->verifSession();
-        // On lance la vérification des permissions
-        if(!$this->verifPermissions()){
-            if($this->typeRetour === "template"){ 
-                $this->permission->redirect("non-autorised");
+        if($this->get("connected") === true) {
+            // On lance la vérification de la session
+            $this->verifSession();
+            // On lance la vérification des permissions
+            if(!$this->verifPermissions()){
+                if($this->typeRetour === "template"){ 
+                    $this->permission->redirect("non-autorised");
+                }
             }
         }
     }
@@ -97,6 +105,15 @@ class _controller {
      */
     function execute(){
         //Fonction à surchargée dans la classe fille
+        /*
+        // Code à executer après les traitements du controller si on est en template ou fragment
+        $objTemplate = new _template();
+        $objTemplate->getHtmlContent("template");
+
+        // Code à executer après les traitements du controller si on est en json
+        echo json_encode($this->retour);
+        */
+
         return true;
     }
 
@@ -111,12 +128,7 @@ class _controller {
         $retour["raison"] = $raison;
         $retour["message"] = $message;
         
-        if($this->typeRetour === "json" || $this->typeRetour === "fragment"){ 
-            $this->retour = json_encode($retour);
-        }
-        else {
-            $this->retour = $retour;
-        }
+        $this->retour = $retour;
 
         return true;
     }
@@ -157,7 +169,7 @@ class _controller {
                 // On appelle la fonction de vérification de la permission
                 if($this->permission->verifPermission($nomObjet,$nomAction)) {
                     // On instancie un objet
-                    $objet = new $nomObjet();
+                    $objet = new $nomObjet ();
                     // On récupère le partitionnement pour cette permission
                     $partitionnement = $this->permission->getPartitionnement($nomObjet,$nomAction);
                     if (isset($this->params[$objet->champ_id()]) && $partitionnement===true) {

@@ -28,6 +28,9 @@ function autoLoadClass($nameClass) {
     else if(file_exists("src/modeles/$nameClass.php")) {
         include_once "src/modeles/$nameClass.php";
     }
+    else if(file_exists("src/controllers/$nameClass.php")) {
+        include_once "src/controllers/$nameClass.php";
+    }
 }
 //Enregistrement de la fonction de chargement automatique dans le système
 spl_autoload_register("autoLoadClass");

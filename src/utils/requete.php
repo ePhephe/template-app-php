@@ -33,6 +33,7 @@
  * @method makeUnFiltreValeur() Met en forme la valeur pour le filtre
  * @method makeSet() Construit la partie SET de la requête d'INSERT ou d'UPDATE
  * @method makeParamForSet() Construit le tableau de paramètres à passer pour une requête INSERT ou UPDATE
+ * @method makeFiltrePartitionnement() Ajoute les conditions de filtre pour le partitionnement de données de l'utilisateur connecté
  * 
  */
 
@@ -193,9 +194,13 @@ class _requete {
             $this->requete .= $this->makeFrom();
             // Clause WHERE
             $this->requete .= " WHERE " . $this->makeFiltres();
-            // Clause WHERE
+            // Complément à la clause WHERE si partitionement
+            if($this->get("partitionement") === true) {
+                $this->requete .= $this->makeFiltrePartitionnement();
+            }
+            // Clause ORDER
             $this->requete .= $this->makeTri();
-            // Clause WHERE
+            // Clause LIMIT
             $this->requete .= $this->makeLimit();
         }
 
@@ -216,7 +221,7 @@ class _requete {
     function insert(){
         // Construction de la requête
         if($this->get("requete") === ""){
-            // Clause UPDATE
+            // Clause INSERT
             $this->requete .= "INSERT ";
             // Clause FROM
             $this->requete .= $this->get("mainTable") . " ";
@@ -248,6 +253,10 @@ class _requete {
             $this->requete .= $this->makeSet();
             // Clause WHERE
             $this->requete .= " WHERE " . $this->makeFiltres();
+            // Complément à la clause WHERE si partitionement
+            if($this->get("partitionement") === true) {
+                $this->requete .= $this->makeFiltrePartitionnement();
+            }
         }
 
         //Execution de la requête
@@ -272,6 +281,10 @@ class _requete {
             $this->requete .= $this->makeFrom();
             // Clause WHERE
             $this->requete .= " WHERE " . $this->makeFiltres();
+            // Complément à la clause WHERE si partitionement
+            if($this->get("partitionement") === true) {
+                $this->requete .= $this->makeFiltrePartitionnement();
+            }
         }
 
         //Execution de la requête
@@ -531,4 +544,31 @@ class _requete {
         $this->params[] = $arrayResult;
     }
 
+    /**
+     * Ajoute les conditions de filtre pour le partitionnement de données de l'utilisateur connecté
+     *
+     * @return mixed Clause du filtre de la requête, False s'il y a une erreur
+     */
+    function makeFiltrePartitionnement() {
+        //On initialise le champ de retour et le filtre
+        $strClausePartitionement = "";
+        $arrayFiltrePartitionement = [];
+
+        //On parcourt tous les champs
+        foreach ($this->fields as $cleChamp => $field) {
+            //Si c'est un lien (objet)
+            if($field->get("type") === "object") {
+                $objSession = _session::getSession();
+                //Si le lien correspond à la table des utilisateurs
+                if($field->get("nomObjet") === $objSession->getTableUser()) {
+                     $arrayFiltrePartitionement[] = " `$cleChamp` = ".$objSession->id(). " ";
+                }
+            }
+        }
+
+        if(!empty($arrayFiltrePartitionement))
+            $strClausePartitionement .= "( ".implode(" OR ",$arrayFiltrePartitionement). " ) ";
+
+        return $strClausePartitionement;
+    }
 }

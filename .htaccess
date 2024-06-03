@@ -1,2 +1,7 @@
-# Activation du module de réécriture
-RewriteEngine on
+RewriteEngine On
+
+# Redirige toutes les requêtes sans nom de page fourni vers index.php sans paramètre
+RewriteRule ^$ index.php [L,QSA]
+
+# Redirige toutes les requêtes avec un nom de page vers index.php avec le paramètre page
+RewriteRule ^([^/]+).php$ index.php?page=$1 [L,QSA]

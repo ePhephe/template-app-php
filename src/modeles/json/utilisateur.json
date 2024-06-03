@@ -1,0 +1,75 @@
+{
+    "type": "modele",
+    "table": "utilisateur",
+    "champ_id": "u_id",
+    "links": [
+        {
+            "table": "user",
+            "cle": "v_user"
+        },
+        {
+            "table": "",
+            "cle": ""
+        }
+    ],
+    "fields": [
+        {
+            "name": "",
+            "type": "",
+            "libelle": "",
+            "nomObjet": "",
+            "unicite": false,
+            "input": {
+                "name": "",
+                "id": "",
+                "placeholder": "",
+                "type": "",
+                "step": "",
+                "confirmationNeeded": false
+            },
+            "contraintes": {
+                "min": 0,
+                "max": 10000000,
+                "min_length": 1,
+                "max_length": 10000000
+            },
+            "formats": {
+                "affichage": "d/m/Y H:i:s",
+                "bdd": "Y-m-d H:i:s",
+                "html": "d/m/Y H:i:s"
+            },
+            "listeCleValeur": [
+                {
+                    "cle": "",
+                    "valeur": ""
+                },
+                {
+                    "cle": "",
+                    "valeur": ""
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "action": "create",
+            "url": "creer_utilisateur"
+        },
+        {
+            "action": "read",
+            "url": "detail_utilisateur"
+        },
+        {
+            "action": "update",
+            "url": "modifier_utilisateur"
+        },
+        {
+            "action": "delete",
+            "url": "supprimer_utilisateur"
+        },
+        {
+            "action": "list",
+            "url": "lister_utilisateur"
+        }
+    ]
+}

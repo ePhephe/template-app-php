@@ -17,6 +17,14 @@
  * @method id() Retourne l'identifiant de l'objet courant
  * @method champ_id() Retourne le champ identifiant de l'objet courant
  * @method set() Définit la valeur d'un champ
+ * @method loadFromTab() Charge l'objet à partir d'un tableau
+ * @method load() Charge un objet à partir d'un identifiant
+ * @method insert() Insertion de l'objet dans la base de données
+ * @method update() Mise à jour de l'objet dans la base de données
+ * @method delete() Suppression de l'objet dans la base de données
+ * @method list() Retourne un tableau d'objet selon les critères fournis, tous les éléménts si aucun critère
+ * @method getFormulaire() Renvoi le code HTML du formulaire pour l'objet et l'action demandée
+ * @method verifParamsFormulaire() Vérifie que les paramètres passés correspondent à l'objet et les chargent
  * 
  */
 
@@ -31,19 +39,21 @@ class _model {
      */
 
     // Nom de la table dans la BDD
-    protected string $table = "";
+    protected $table = "";
     // Clé de la table
-    protected string $champ_id = "";
+    protected $champ_id = "";
+    // Soumis au partitionnement
+    protected $partitionement = false;
     // Lien avec les autres tables
-    protected array $links = []; // ["nom_table" => "champ_lien_vers_table"]
+    protected $links = []; // ["nom_table" => "champ_lien_vers_table"]
     // Liste des champs
-    protected array $fields = []; // ["nom_champ1" => objet_champ1,"nom_champ2" => objet_champ2]
+    protected $fields = []; // ["nom_champ1" => objet_champ1,"nom_champ2" => objet_champ2]
 
     // Nom des controllers d'action sur l'objet
-    protected array $actions = []; // ["action" => "nom_controller"]
+    protected $actions = []; // ["action" => "nom_controller"]
     
     // Identifiant de l'objet
-    protected int $id = 0;
+    protected $id = 0;
 
     /**
      * Constructeur
@@ -55,7 +65,7 @@ class _model {
      * @param  integer $id Identifiant de l'objet à charger
      * @return void
      */
-    function __construct($id = null) {
+    function __construct($id = null, $partitionement = false) {
         // On définit les champs de l'objet
         $this->define();
         // Si l'identifiant n'est pas null
@@ -63,19 +73,23 @@ class _model {
             //On charge l'objet
             $this->load($id);
         }
+        // On définit le partitionnement
+        $this->partitionement = $partitionement;
     }
     
+    /**
+     * Méthodes
+     */
+
     /**
      * Ajoute le champ à l'objet
      *
      * @param array $arrayInfoChamp Tableau des informations du champ
      * @return void
      */
-    protected function addField($arrayInfoChamp) {
+    protected function addField($infosChamp) {
         // On instancie un objet _field du champ
-        $this->fields[$arrayInfoChamp["name"]] = new _field(
-            
-        );
+        $this->fields[$infosChamp->name] = new _field($infosChamp);
     }
     
     /**
@@ -85,18 +99,38 @@ class _model {
      */
     protected function define() {
         // On récupère les informations dans un fichier json
-        $json = file_get_contents($this->table . ".json");
-        $arrayChamps = json_decode($json);
-
+        $json = file_get_contents("src/modeles/json/" . $this->table . ".json");
+        $infosModele = json_decode($json);
+        
+        // On récupère le nom de la table
+        $this->table = $infosModele->table;
+        // On récupère le champ qui correspond à l'id
+        $this->champ_id = $infosModele->champ_id;
+        // On parcourt les liens pour en construire le tableau
+        foreach ($infosModele->links as $value) {
+            $this->links[] = [$value->table => $value->cle];
+        }
+        // On parcourt les actions pour en construire le tableau
+        foreach ($infosModele->actions as $value) {
+            $this->actions[] = [$value->action => $value->url];
+        }
+        
         // On parcourt tous les champs présent dans le fichier
-
-        // On appelle la méthode pour ajouter le champ
-        $this->addField($infosChamp);
+        foreach ($infosModele->fields as $infosChamp) {
+            // On appelle la méthode pour ajouter le champ
+            $this->addField($infosChamp);
+        }
     }
 
     /**
-     * Méthodes
+     * Vérifie la cohérence des données de l'objet
+     *
+     * @return boolean True si tout est OK sinon False
      */
+    function verify(){
+        /* A surchargé dans la classe fille si on veut l'utilisé */
+        return true;
+    }
     
     /**
      * Retourne l'information si l'objet est chargé
@@ -222,16 +256,8 @@ class _model {
     function loadFromTab($data) {
         //On parcourt tous les champs
         foreach($this->fields as $fieldName => $field){
-            //Pour chaque champ on indique la valeur dans l'attribut values
-            $this->values[$fieldName] = $data[$fieldName];
-
-            if($field["type"] === "object") {
-                //On vérifie si on a stocké un objet pour ce champ dans le tableau values avec la clé name_object
-                //Si name_object n'existe pas, on créé l'objet et on le stocke à cet emplacement
-                $objNew = new $field["nom_objet"]();
-                $objNew->load($this->values[$fieldName]);
-                $this->values[$fieldName."_object"] = $objNew;
-            }
+            //Pour chaque champ on indique la valeur dans l'attribut de l'objet correspondant
+            $this->fields[$fieldName]->setValue($data[$fieldName]);
         }
 
         //Puis on enregistre l'id dans son attribut dédié
@@ -239,57 +265,10 @@ class _model {
 
         return true;
     }
-    
-    /**
-     * Vérifie que le champ est unique dans la base de données
-     *
-     * @param  string $champ Nom du champ à tester
-     * @param  mixed $valeur Valeur du champ à tester
-     * @return boolean True si la valeur est bien unique, False si elle est déjà utilisé
-     */
-    function verifUnicite($champ,$valeur){
-         //On construit la requête SELECT
-         $strRequete = "SELECT `$champ` FROM `$this->table` WHERE `$champ` = :valeur ";
-         $arrayParam = [
-             ":valeur" => $valeur
-         ];
- 
-         //On prépare la requête
-         $bdd = static::bdd();
-         $objRequete = $bdd->prepare($strRequete);
- 
-         //On exécute la requête avec les parmaètres
-         if ( ! $objRequete->execute($arrayParam)) {
-             return false;
-         }
- 
-         //On récupère les résultats
-         $arrayResultats = $objRequete->fetchAll(PDO::FETCH_ASSOC);
-         //Si le tableau est vide, on retourne une erreur (false)
-         if(empty($arrayResultats)) {
-             return true;
-         }
-    }
 
     /**
      * Méthodes de gestion avec la BDD
      */
-     
-     /**
-      * Retourne la connexion à la base de données ou crée la connexion si elle n'est pas existante
-      *
-      * @return object Objet PDO de la base de données
-      */
-     static function bdd() {
-        if(empty(static::$bdd)) {
-            static::$bdd = new PDO("mysql:host=localhost;dbname=projets_tickets_mdurand;charset=UTF8","mdurand","ac2dmTM8q?M");;
-            static::$bdd->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
-            return static::$bdd;
-        }
-        else {
-            return static::$bdd;
-        }
-     }
     
     /**
      * Charge un objet à partir d'un identifiant
@@ -298,35 +277,23 @@ class _model {
      * @return boolean - True si le chargement s'est bien passé sinon False
      */
     function load($id) {
-        //On débute la requête avec le SELECT
-        $strRequete = "SELECT " ;
-
-        //On génère un tableau composés des noms des champs encadrés par ` ` 
-        $arrayFields = [];
-        foreach($this->fields as $fieldName => $field) {
-            $arrayFields[] = "`$fieldName`";
-        }
-        $strRequete .= implode(", ", $arrayFields);
-        
-        //On construit le FROM avec le nom de la table
-        $strRequete .= " FROM `$this->table` ";
-
-        //On construit le WHERE avec l'id que l'on passe en tableau de paramètre
-        $strRequete .= " WHERE `$this->champ_id` = :id";
-        $arrayParam = [ ":id" => $id];
-
-        //On prépare la requête
-        $bdd = static::bdd();
-        $objRequete = $bdd->prepare($strRequete);
-
-        //On execute la requête avec ses paramètres
-        if ( ! $objRequete->execute($arrayParam)) {
-            // On a une erreur de requête (on peut afficher des messages en phase de debug)
-            return false;
-        }
+        // On instancie un objet de la classe _requete avec les informations nécessaires
+        $objRequete = new _requete(
+            $this->fields,
+            $this->table,
+            [$this->table => $this],
+            $this->partitionement,
+            [
+                "champ" => $this->champ_id,
+                "valeur" => $id,
+                "operateur" => "=",
+                "table" => $this->table
+            ]
+        );
 
         //On récupère les résultats
-        $arrayResultats = $objRequete->fetchAll(PDO::FETCH_ASSOC);
+        $arrayResultats = $objRequete->select();
+
         //Si le tableau est vide, on retourne une erreur (false)
         if (empty($arrayResultats)) {
             return false;
@@ -335,26 +302,11 @@ class _model {
         //On récupère la ligne de résultat dans une variable
         $arrayInfos = $arrayResultats[0];
 
-        // Pour chaque champ de l'objet, on valorise $this->values[champ];
-        foreach($this->fields as $fieldName => $field) {
-            $this->values[$fieldName] = $arrayInfos[$fieldName];
-        }
-
-        // On renseigne l'id :
-        $this->id = $id;
+        // On appelle la méthode de chargement de l'objet depuis un tableau
+        $this->loadFromTab($arrayInfos);
 
         return true;
-    }
-    
-    /**
-     * Vérifie la cohérence des données de l'objet
-     *
-     * @return boolean True si tout est OK sinon False
-     */
-    function verify(){
-        /* A surchargé dans la classe fille si on veut l'utilisé */
-        return true;
-    }
+    }    
     
     /**
      * Insertion de l'objet dans la base de données
@@ -366,22 +318,16 @@ class _model {
         if($this->verify() === false)
             return false;
 
-        //On construit la requête INSERT
-        $strRequete = "INSERT INTO `$this->table` SET " . $this->makeRequestSet();
-        $arrayParam  = $this->makeRequestParamForSet();
+        // On instancie un objet de la classe _requete avec les informations nécessaires
+        $objRequete = new _requete(
+            $this->fields,
+            $this->table,
+            [$this->table => $this],
+            $this->partitionement
+        );
 
-        //On prépare la requête
-        $bdd = static::bdd();
-        $objRequete = $bdd->prepare($strRequete);
-
-        //On execute la requête et on gère les erreurs
-        if ( ! $objRequete->execute($arrayParam)) {
-            // Erreur sur la requête
-            return false;
-        }
-
-        //On récupère l'identifiant qui a été créé par l'INSERT
-        $this->id = $bdd->lastInsertId();
+        // On exécute la requête d'insertion
+        $this->id = $objRequete->insert();
 
         return true;
     }
@@ -397,19 +343,22 @@ class _model {
         if($this->verify() === false)
             return false;
         
-        //On construit la requête d'UPDATE
-        $strRequete = "UPDATE  `$this->table` SET " . $this->makeRequestSet() . " WHERE `$this->champ_id` = :id ";
-        $arrayParam = $this->makeRequestParamForSet();
-        $arrayParam[":id"] = $this->id;
+        // On instancie un objet de la classe _requete avec les informations nécessaires
+        $objRequete = new _requete(
+            $this->fields,
+            $this->table,
+            [$this->table => $this],
+            $this->partitionement,
+            [
+                "champ" => $this->champ_id,
+                "valeur" => $this->id,
+                "operateur" => "=",
+                "table" => $this->table
+            ]
+        );
            
-
         //On prépare la requête
-        $bdd = static::bdd();
-        $objRequete = $bdd->prepare($strRequete);
-
-        //On exécute la requête et on gère les erreurs
-        if ( ! $objRequete->execute($arrayParam)) {
-            // Erreur sur la requête
+        if(!$objRequete->update()){
             return false;
         }
 
@@ -422,17 +371,22 @@ class _model {
      * @return boolean - True si le chargement s'est bien passé sinon False
      */
     function delete() {
-        //On construit la requête du DELETE
-        $strRequete = "DELETE FROM `$this->table` WHERE `$this->champ_id` = :id";
-        $arrayParam = [":id" => $this->id];
-    
-        //On prépare la requête
-        $bdd = static::bdd();
-        $req = $bdd->prepare($strRequete);
+        // On instancie un objet de la classe _requete avec les informations nécessaires
+        $objRequete = new _requete(
+            $this->fields,
+            $this->table,
+            [$this->table => $this],
+            $this->partitionement,
+            [
+                "champ" => $this->champ_id,
+                "valeur" => $this->id,
+                "operateur" => "=",
+                "table" => $this->table
+            ]
+        );
 
         //On exécute la requête avec les parmaètres
-        if ( ! $req->execute($arrayParam)) {
-            //Erreur sur la requête
+        if ( ! $objRequete->delete()) {
             return false;
         }
 
@@ -441,197 +395,33 @@ class _model {
 
         return true;
     }
-    
-    /**
-     * Liste tous les éléments de la base de données
-     *
-     * @param  array $arrayCriteresTri Tableau des critère de tri (facultatif)
-     * @return mixed - Tableau d'objets indexé sur l'id, s'il y a une erreur False
-     */
-    function listAll($arrayCriteresTri = []) {
-        //On construit la requête SELECT
-        $arrayFields = [];
-        // Pour chaque champ, on ajoute un elt `nomChamp` dans le tableau
-        foreach ($this->fields as $fieldName => $field) {
-            $arrayFields[] = "`$fieldName`";
-        }
-
-        $strRequete = "SELECT `$this->champ_id`, " . implode(",", $arrayFields) . " FROM `$this->table` ";
         
-        //Si des crtières de tri sont présents
-        $arrayTri = [];
-        $strRequete .= "ORDER BY ";
-        if(!empty($arrayCriteresTri)) {
-            $arrayTri = [];
-            foreach ($arrayCriteresTri as $critere => $sens) {
-                if(array_key_exists($critere,$this->fields))
-                    $arrayTri[] = "$critere $sens";
-            }
-        }
-        $arrayTri[] = "`$this->champ_id` desc";
-        $strRequete .= implode(",",$arrayTri). " ";
-
-        //On prépare la requête SQL
-        $bdd = static::bdd();
-        $objRequete = $bdd->prepare($strRequete);
-
-        //On exécute la requête et on gère les erreurs
-        if ( ! $objRequete->execute()) { 
-            return false;
-        }
-
-        //On récupère les enregistrements et on gère les erreurs si le tableau est vide
-        $arrayResultats = $objRequete->fetchAll(PDO::FETCH_ASSOC);
-        if (empty($arrayResultats)) {
-            return false;
-        }
-
-        //On construit le tableau à retourner
-        $arrayObjResultat = [];
-        foreach ($arrayResultats as $unResultat) {
-            $newObj = new $this->table();
-            $newObj->loadFromTab($unResultat);
-            $arrayObjResultat[$unResultat["id"]] = $newObj;
-        }
-  
-        return $arrayObjResultat;
-    }
-    
     /**
-     * Retourne un tableau d'objet selon les critères fournis
+     * Retourne un tableau d'objet selon les critères fournis, tous les éléménts si aucun critère
      *
-     * @param  array $arrayFiltres Tableau des critères de filtre au format [["champ"=>"nom","valeur"=>"test","operateur"=>"LIKE"]] (facultatif)
-     * @param  boolean $partitionnement - True si un partitionement doit être appliqué sinon False (facultatif)
-     * @param  array $arrayCriteresTri Tableau des crtières de tri au format [["champ" => "sens"]] (facultatif)
+     * @param  array $arrayTables Tableau des tables à interoger (en plus de la table de l'objet) ["nom_table1" => "objet_table1","nom_table1" => "objet_table1"] (facultatif)
+     * @param  array $arrayFiltres Tableau des critères de filtre au format [["champ"=>"nom_champ","valeur"=>"test","operateur"=>"LIKE","table"=>"nom_table_champ"],["champ" => "bloc", "valeur" => [["champ"=>"nom","valeur"=>"test","operateur"=>"LIKE","table"=>"nom_table_champ"],["champ"=>"nom","valeur"=>"test","operateur"=>"LIKE","table"=>"nom_table_champ"]], "operateur" => "OR"]] (facultatif)
+     * @param  array $arrayCriteresTri Tableau des crtières de tri au format [["champ" => "sens"],["champ" => "sens"]] (facultatif)
      * @param  array $arrayLimit Tableau des crtières pagination ["limit" => 10,"offset" => 0] (facultatif)
-     * @return mixed - Tableau d'objets indexé sur l'id, s'il y a une erreur False
+     * @return mixed Tableau d'objets indexé sur l'id, s'il y a une erreur False
      */
-    function list($arrayFiltres = [], $partitionement = false,$arrayCriteresTri = [], $arrayLimit = []) {
-        //On construit la requête SELECT
-        $arrayFields = [];
-        $arrayParam = [];
-        foreach ($this->fields as $fieldName => $field) {
-            $arrayFields[] = "`$fieldName`";
-        }
-        $strRequeteSelect = "SELECT `$this->champ_id`, " . implode(",", $arrayFields) . " ";
+    function list($arrayTables = [], $arrayFiltres = [],$arrayCriteresTri = [], $arrayLimit = []) {
+        // On instancie un objet de la classe _requete avec les informations nécessaires
+        $objRequete = new _requete(
+            $this->fields,
+            $this->table,
+            array_merge([$this->table => $this],$arrayTables),
+            $this->partitionement,
+            $arrayFiltres,
+            $arrayCriteresTri,
+            $arrayLimit
+        );
 
-        //On initialise un tableau pour la FROM
-        $arrayFROM[$this->table] = "`" . $this->table . "`";
+        //On récupère les résultats
+        $arrayResultats = $objRequete->select();
 
-        //On initialise la clause WHERE
-        $strRequeteWhere = "";
-        $arrayReqFiltres = [];
-        //Si des crtières de filtre sont présents
-        if(!empty($arrayFiltres)) {
-            foreach ($arrayFiltres as $index => $filtre) {
-                //Si on est sur un filtre qui est dans une autre table
-                if(array_key_exists("lien",$filtre)){
-                    //On instancie un objet du lien
-                    $objFiltre = new $filtre["lien"]();
-                    //On ajoute le lien au FORM
-                    if(!array_key_exists($filtre["lien"],$arrayFROM)) {
-                        $arrayFROM[$filtre["lien"]] = "LEFT JOIN `".$filtre["lien"]."` ON `".$objFiltre->champ_id()."` = `".$this->links[$filtre["lien"]]."`";
-                        //On ajoute les champs du lien au SELECT
-                        $fieldsLien = $objFiltre->makeTableauSimpleSelect();
-                        $strRequeteSelect .= ", " . implode(",",$fieldsLien) . " ";
-                    }
-                    //On ajoute le filtre
-                    $arrayReqFiltres[] = $objFiltre->makeFiltre($filtre,$index);
-                    //On ajoute la valeur du filtre au tableau des paramètres
-                    $arrayParam[":".$filtre["champ"].$index] = $objFiltre->makeFiltreValeur($filtre,$index);
-                }
-                //Si on a pas de nom de champ dans un filtre, c'est un bloc de filtre OR
-                else if(!array_key_exists("champ",$filtre)){
-                    $arrayOrFiltres = [];
-                    foreach ($filtre as $key => $unFiltre) {
-                        if(array_key_exists("lien",$unFiltre)){
-                            //On instancie un objet du lien
-                            $objFiltre = new $unFiltre["lien"]();
-                            //On ajoute le lien au FORM
-                            if(!array_key_exists($unFiltre["lien"],$arrayFROM)){
-                                $arrayFROM[$unFiltre["lien"]] = "LEFT JOIN `".$unFiltre["lien"]."` ON `".$objFiltre->champ_id()."` = `".$this->links[$unFiltre["lien"]]."`";
-                                //On ajoute les champs du lien au SELECT
-                                $fieldsLien = $objFiltre->makeTableauSimpleSelect();
-                                $strRequeteSelect .= ", " . implode(",",$fieldsLien) . " ";
-                            }
-                            //On ajoute le filtre
-                            $arrayOrFiltres[] = $objFiltre->makeFiltre($unFiltre,$index);
-                            //On ajoute la valeur du filtre au tableau des paramètres
-                            $arrayParam[":".$unFiltre["champ"].$index] = $objFiltre->makeFiltreValeur($unFiltre,$index);
-                        }
-                        else if(array_key_exists($unFiltre["champ"],$this->fields) || $unFiltre["champ"]===$this->champ_id) {
-                            //On ajoute le filtre
-                            $arrayOrFiltres[] = $this->makeFiltre($unFiltre,$index);
-                            //On ajoute la valeur du filtre au tableau des paramètres
-                            $arrayParam[":".$unFiltre["champ"].$index] = $this->makeFiltreValeur($unFiltre,$index);
-                        }
-                    }
-                    $arrayReqFiltres[] = " (". implode(" OR ", $arrayOrFiltres) . ") ";
-                }
-                //Sinon on vérifie que le champ est bien dans notre table
-                else {
-                    if(array_key_exists($filtre["champ"],$this->fields) || $filtre["champ"]===$this->champ_id) {
-                        //On ajoute le filtre
-                        $arrayReqFiltres[] = $this->makeFiltre($filtre,$index);
-                        //On ajoute la valeur du filtre au tableau des paramètres
-                        $arrayParam[":".$filtre["champ"].$index] = $this->makeFiltreValeur($filtre,$index);
-                    }
-                }
-            }
-        }
-
-        //Gestion du FROM
-        $strRequeteFrom = "FROM " . implode(" ",$arrayFROM);
-
-        //Si on a du partitionnement de données
-        if($partitionement === true){
-            $arrayReqFiltres[] =  $this->setFiltrePartitionnement();
-        }
-
-        if(!empty($arrayReqFiltres))
-            $strRequeteWhere .= "WHERE ". implode(" AND ", $arrayReqFiltres) . " ";
-
-        $strRequete = $strRequeteSelect . $strRequeteFrom . $strRequeteWhere;
-
-        //Si des crtières de tri sont présents
-        $arrayTri = [];
-        $strRequete .= "ORDER BY ";
-        if(!empty($arrayCriteresTri)) {
-            $arrayTri = [];
-            foreach ($arrayCriteresTri as $critere => $sens) {
-                if(array_key_exists($critere,$this->fields))
-                    $arrayTri[] = "`$critere` $sens";
-            }
-        }
-        $arrayTri[] = "`$this->champ_id` desc";
-        $strRequete .= implode(",",$arrayTri). " ";
-
-        //Si un critère de pagination est présent
-        if(!empty($arrayLimit)) {
-            $strRequete .= "LIMIT ".$arrayLimit["offset"].", ".$arrayLimit["limit"];
-        }
-
-        //On prépare la requête
-        $bdd = static::bdd();
-        $req = $bdd->prepare($strRequete);
-
-        //On exécute la requête avec ses paramètres et on gère les erreurs
-        if ( ! $req->execute($arrayParam)) { 
-            var_dump($strRequete);
-            var_dump($arrayParam);
-            return false;
-        }
-
-        //On récupère les résultats et on gère les erreurs
-        $arrayResultats = $req->fetchAll(PDO::FETCH_ASSOC);
-        /* Un résultat vide est un résultat, je met en commentaire
-        if (empty($arrayResultats)) {
-            return false;
-        }
-        */
-
-        // construire le tableau à retourner :
-        // Pour chaque élément de $liste, fabriquer un objet contact que l'on met dans le tableau final
+        // On construit le tableau à retourner :
+        // Pour chaque élément on instance un objet que l'on met dans le tableau final
         $arrayObjResultat = [];
         foreach ($arrayResultats as $unResultat) {
             $newObj = new $this->table();
@@ -642,255 +432,11 @@ class _model {
   
         return $arrayObjResultat;
     }
-    
-    /**
-     * Génère la partie SET d'une requête INSERT/UPDATE
-     *
-     * @return string - Chaîne de caractères de la partie SET de la requête
-     */
-    function makeRequestSet() {
-        //On va chercher le tableau des champs
-        $tableau = $this->makeTableauSimpleSet();
-
-        // Générer le texte final grâce à implode
-        return implode(", ", $tableau);
-    }
-    
-    /**
-     * Construit la clause du filtre pour la clause WHERE
-     *
-     * @param  array $unFiltre Tableau du filtre concerné
-     * @param  integer $index Index du filtre dans la requête
-     * @return string - Chaîne de caractère correspondant au filtre
-     */
-    function makeFiltre($unFiltre,$index) {
-        if($unFiltre["champ"] === $this->champ_id()){
-            return "`" . $unFiltre["champ"] . "` " . $unFiltre["operateur"] . " :".$unFiltre["champ"].$index;
-        }
-        else if($this->fields[$unFiltre["champ"]]["type"] === "text") {
-            return "UPPER(".$unFiltre["champ"].") " . $unFiltre["operateur"] . " :".$unFiltre["champ"].$index;
-        }
-        else {
-            return "`" . $unFiltre["champ"] . "` " . $unFiltre["operateur"] . " :".$unFiltre["champ"].$index;
-        }
-    }
-
-    /**
-     * Met en forme la valeur pour le filtre
-     *
-     * @param  array $unFiltre Tableau du filtre concerné
-     * @param  integer $index Index du filtre dans la requête
-     * @return string - Chaîne de caractère mise en forme
-     */
-    function makeFiltreValeur($unFiltre,$index) {
-        if($unFiltre["champ"] === $this->champ_id()){
-            return $unFiltre["valeur"];
-        }
-        else if($this->fields[$unFiltre["champ"]]["type"] === "text") {
-            if($unFiltre["operateur"] === "LIKE"){
-                return "%".strtoupper($unFiltre["valeur"])."%";
-            }
-            else {
-                return strtoupper($unFiltre["valeur"]);
-            }
-        }
-        else {
-            return $unFiltre["valeur"];
-        }
-    }
-
-    /**
-     * Construit un tableau des champs de l'objet
-     *
-     * @return array - Tableau des champs
-     */
-    function makeTableauSimpleSelect() {
-        // Faire un tableau : on part d'un tableau vide
-        $arrayResultat = [];
-
-        // Pour chaque champ : ajouter dans $result un élément `nomChamp` = :nomChamp
-        foreach($this->fields as $fieldName => $field) {
-            // On a le nom du champ dans $nomchamp
-            $arrayResultat[] = "`$fieldName`";
-        }
-
-        $arrayResultat[] = "`$this->champ_id`";
-
-        return $arrayResultat;
-    }
-
-    /**
-     * Construit un tableau des champs de l'objet au format requête " `champ` = :champ "
-     *
-     * @return array - Tableau des champs au format requête " `champ` = :champ "
-     */
-    function makeTableauSimpleSet() {
-        // Faire un tableau : on part d'un tableau vide
-        $arrayResultat = [];
-
-        // Pour chaque champ : ajouter dans $result un élément `nomChamp` = :nomChamp
-        foreach($this->fields as $fieldName => $field) {
-            // On a le nom du champ dans $nomchamp
-            $arrayResultat[] = "`$fieldName` = :$fieldName";
-        }
-
-        return $arrayResultat;
-    }
-    
-    /**
-     * Retourne un tableau de paramètre à passer en pramètre d'un requête INSERT/UPDATE
-     *
-     * @return array - Tableau des paramètres de la requête au format ":champ" => valeurchamp
-     */
-    function makeRequestParamForSet() {
-        //On initialise un tableau vide
-        $arrayResult = [];
-        
-        //On parcourt tous les champs
-        foreach($this->fields as $fieldName => $field) {
-            $strCle = ":$fieldName";          
-            // Valeur : elle est dans le tableau des valeurs, l'attribut values ($this->values)
-            // Si on a une valeur pour $nomChamp, on crée l'élément de tableau avec cette valeur,
-            // Sinon, on crée avec null
-            if (isset($this->values[$fieldName])) {
-                $arrayResult[$fieldName] = $this->values[$fieldName];
-            } else {
-                $arrayResult[$fieldName] = null;
-            }
-        }
-
-        return $arrayResult;
-    }
 
     /**
      * Méthodes de formulaire
      */
 
-        
-    /**
-     * Retourne le code HTML de l'input du champ
-     *
-     * @param  string $champ Champ pour lequel on veut l'input
-     * @param  string $readonly Passer la valeur "readonly" pour que le formulaire ne soit pas modifiable
-     * @param  array $infosChamp Tableau de paramètres spécifiques pour le champ
-     * @return mixed Code HTML sinon false en cas d'erreur
-     */
-    function getInputFormulaire($champ,$readonly="",$infosChamp=[]) {
-        //On vérifie si on a un readonly spécifique pour le champ
-        if(isSet($infosChamp["readonly"]))
-            $readonly = $infosChamp["readonly"];
-        //On initialise le template HTML
-        $templateHTML = "";
-        if(isSet($this->fields[$champ]["type_input"])){
-            //On met en place le label correspondant au champ
-            $templateHTML .= '<div id="div_'.$champ.'" class="div_input_form"><label for="'.$champ.'">'.$this->fields[$champ]["libelle"].' : </label>';
-            //On prépare la valeur si on en a une
-            $valeurChamp = (isSet($this->values[$champ])) ? $this->values[$champ] : "";
-            //On recupère le type d'input du champ et on réalise le traitement adéquat
-            switch ($this->fields[$champ]["type_input"]) {
-                //Si on est sur un select
-                case 'select':
-                    $templateHTML .= '<select name="'.$champ.'" id="'.$champ.'">';
-                    //Si on est en readonly, on disable les options sauf la valeur actuelle
-                    if($readonly != "")
-                        $templateHTML .= '<option value="" disabled>Choisissez une valeur</option>';
-                    else
-                        $templateHTML .= '<option value="">Choisissez une valeur</option>';
-                    
-                    foreach ($this->fields[$champ]["liste_cle_valeur"] as $key => $value) {
-                        //On préselectionne par défaut la bonne valeur
-                        if(isSet($this->values[$champ])) {
-                            $selected = ($this->values[$champ] === strval($key)) ? "selected" : "";
-                        }
-                        else {
-                            $selected = "";
-                        }
-                        //Si on est en readonly, on disable les options sauf la valeur actuelle
-                        if($readonly != "" && $selected != "selected"){
-                            $selectReadonly = "disabled";
-                        }
-                        else {
-                            $selectReadonly = "";
-                        }
-
-                        if(isSet($infosChamp["autorised_value"])) {
-                            if(in_array($key,$infosChamp["autorised_value"]))
-                                $templateHTML .= ' <option value="'.$key.'" '.$selected.' '.$selectReadonly.'>'.$value.'</option>';
-                        }
-                        else {
-                            $templateHTML .= ' <option value="'.$key.'" '.$selected.' '.$selectReadonly.'>'.$value.'</option>';
-                        }
-                        
-                    }
-                    $templateHTML .= '</select>';
-                    break;
-                //Si on est sur un textarea
-                case 'textarea':
-                    $templateHTML .= '<textarea name="'.$champ.'" id="'.$champ.'"';
-                    if(isSet($this->fields[$champ]["max_length"])){
-                        $templateHTML .= 'maxlenght='.$this->fields[$champ]["max_length"].' ';
-                    }
-                    if(isSet($this->fields[$champ]["min_length"])){
-                        $templateHTML .= 'minlenght='.$this->fields[$champ]["max_length"].' ';
-                    }
-                    $templateHTML .= $readonly.'>'.$valeurChamp.'</textarea>';
-                    break;
-                //Si on est sur un checkbox
-                case 'checkbox':
-                    # code...
-                    break;
-                //Si on est sur un radiobox
-                case 'radiobox':
-                    # code...
-                    break;
-                //Sinon on est sur un input text classique
-                default:
-                    if($this->fields[$champ]["type_input"] === "password") {
-                        //Champ initial
-                        $templateHTML .= '<input type="'.$this->fields[$champ]["type_input"].'" name="'.$champ.'" id="'.$champ.'" ';
-                        if(isSet($this->fields[$champ]["max_length"])){
-                            $templateHTML .= 'maxlenght='.$this->fields[$champ]["max_length"].' ';
-                        }
-                        if(isSet($this->fields[$champ]["min_length"])){
-                            $templateHTML .= 'minlenght='.$this->fields[$champ]["min_length"].' ';
-                        }
-                        $templateHTML .= $readonly.'>';
-                        //Champ de confirmation
-                        $templateHTML .= '<label for="'.$champ.'Confirm">Confirmation : </label>';
-                        $templateHTML .= '<input type="'.$this->fields[$champ]["type_input"].'" name="'.$champ.'Confirm" id="'.$champ.'Confirm" ';
-                        if(isSet($this->fields[$champ]["max_length"])){
-                            $templateHTML .= 'maxlenght='.$this->fields[$champ]["max_length"].' ';
-                        }
-                        if(isSet($this->fields[$champ]["min_length"])){
-                            $templateHTML .= 'minlenght='.$this->fields[$champ]["min_length"].' ';
-                        }
-                        $templateHTML .= $readonly.'>';
-                    }
-                    else {
-                        $templateHTML .= '<input type="'.$this->fields[$champ]["type_input"].'" name="'.$champ.'" id="'.$champ.'" ';
-                        if(isSet($this->fields[$champ]["max_length"])){
-                            $templateHTML .= 'maxlenght='.$this->fields[$champ]["max_length"].' ';
-                        }
-                        if(isSet($this->fields[$champ]["min_length"])){
-                            $templateHTML .= 'minlenght='.$this->fields[$champ]["min_length"].' ';
-                        }
-                        if(isSet($this->fields[$champ]["max"])){
-                            $templateHTML .= 'max='.$this->fields[$champ]["max"].' ';
-                        }
-                        if(isSet($this->fields[$champ]["min"])){
-                            $templateHTML .= 'min='.$this->fields[$champ]["min"].' ';
-                        }
-                        $templateHTML .= $readonly.' value="'.$valeurChamp.'">';
-                    }
-                    break;
-            }
-
-            return $templateHTML.'</div>';    
-        }
-
-        return $templateHTML;  
-    }
-    
     /**
      * Renvoi le code HTML du formulaire pour l'objet et l'action demandée
      *
@@ -900,69 +446,88 @@ class _model {
      * @return mixed Code HTML ou false s'il y a une erreur
      */
     function getFormulaire($action,$json=false,$listInput=[]){
-        //On initialise le template HTML
+        // On initialise le template HTML
         $templateHTML = '';
-
-        //On construit les éléments dépendant l'action
+        // Quelle vision des champ (vide, readonly, disabled)
+        $acces = '';
+        // Tableau des paramètres de l'action
         $paramURL = [];
+
+        // On construit les éléments dépendant l'action
         switch ($action) {
+            // Formulaire de création 
             case 'create':
+                // Action qui sera executé à la soumission du formulaire
                 $urlAction = $this->actions[$action].".php";
+                // Bouton principale qui lancera l'action
                 $buttonSubmit = '<input type="submit" value="Créer">';
-                //Bouton annuler
+                // Bouton secondaire, pas d'action déclencher de base
                 $buttonAnnuler = '<input type="button" value="Annuler">';
-                $readonly = "";
+                // Paramètre de vision des champs dans le formulaire
+                $acces = '';
                 break;
+            // Formulaire de mise à jour 
             case 'update':
+                // Action qui sera executé à la soumission du formulaire
                 $urlAction = $this->actions[$action].".php";
+                // On ajoute en paramètre de l'action, l'identifiant de l'élément (nécessaire pour les traitements suivants)
                 $paramURL["id"] = $this->id();
+                // Bouton principale qui lancera l'action
                 $buttonSubmit = '<input type="submit" value="Modifier">';
-                //Bouton annuler
+                // Bouton secondaire, pas d'action déclencher de base
                 $buttonAnnuler = '<input type="button" value="Annuler">';
-                $readonly = "";
+                // Paramètre de vision des champs dans le formulaire
+                $acces = '';
                 break;
+            // Formulaire de lecture
             case 'read':
+                // Action qui sera executé à la soumission du formulaire
                 $urlAction = $this->actions["list"].".php";
-                $paramURL["id"] = $this->id();
-                $buttonAnnuler = '';
-                $buttonSubmit = '<input type="button" value="Retour à la liste" id="btn-back-list">';
-                $readonly = "readonly";
-                break;
-            case 'delete':
-                $urlAction = $this->actions[$action].".php";
-                $paramURL["id"] = $this->id();
-                $buttonSubmit = '<input type="submit" value="Supprimer">';
-                $buttonAnnuler = '<input type="button" value="Retour à la liste" id="btn-back-list">';
-                $readonly = "disabled";
-                break;
-            default:
-                $urlAction = "";
+                // Bouton principale qui lancera l'action (pas d'action en lecture)
                 $buttonSubmit = '';
+                // Bouton secondaire, pas d'action déclencher de base
+                $buttonAnnuler = '<input type="button" value="Retour à la liste" id="btn-back-list">';
+                // Paramètre de vision des champs dans le formulaire
+                $acces = 'readonly';
+                break;
+            // Formulaire de suppression
+            case 'delete':
+                // Action qui sera executé à la soumission du formulaire
+                $urlAction = $this->actions[$action].".php";
+                // On ajoute en paramètre de l'action, l'identifiant de l'élément (nécessaire pour les traitements suivants)
+                $paramURL["id"] = $this->id();
+                // Bouton principale qui lancera l'action
+                $buttonSubmit = '<input type="submit" value="Supprimer">';
+                // Bouton secondaire, pas d'action déclencher de base
+                $buttonAnnuler = '<input type="button" value="Retour à la liste" id="btn-back-list">';
+                // Paramètre de vision des champs dans le formulaire
+                $acces = 'disabled';
+                break;
+            // Comportement par défaut
+            default:
+                // Action qui sera executé à la soumission du formulaire
+                $urlAction = '';
+                // Bouton principale qui lancera l'action
+                $buttonSubmit = '';
+                // Bouton secondaire, pas d'action déclencher de base
+                $buttonAnnuler = '';
+                // Paramètre de vision des champs dans le formulaire
+                $acces = '';
                 break;
         }
 
-        //Si on attend un retour JSON
-        if($json===true)
-            $paramURL["json"] = true;
+        // Si on attend un retour JSON, on ajouter le paramètre à l'URL
+        if($json === true) $paramURL["json"] = true;
 
-        //Si on a des paramètres d'URL, on les mets en forme
-        if(!empty($paramURL)){
-            $urlAction .= "?". http_build_query($paramURL);
-        }
+        // Si on a des paramètres d'URL, on les mets en forme et on les ajoute à l'URL 
+        if(!empty($paramURL)) $urlAction .= "?". http_build_query($paramURL);
             
         //On commence le formulaire
-        $templateHTML .= '<form action="'.$urlAction.'" method="post" id="form_'.$this->table.'">';
+        $templateHTML .= '<form action="' . $urlAction . '" method="post" id="form_' . $this->table . '">';
 
         //On parcourt tous les champs et on demande le code HTML de chacun
-        foreach ($this->fields as $key => $value) {
-            if(!empty($listInput)){
-                if(array_key_exists($key,$listInput)) {
-                    $templateHTML .= $this->getInputFormulaire($key,$readonly,$listInput[$key]);
-                }
-            }
-            else {
-                $templateHTML .= $this->getInputFormulaire($key,$readonly);
-            }
+        foreach ($this->fields as $keyField => $field) {
+            $templateHTML .= $field->getElementFormulaire($listInput[$keyField], $acces);
         }
 
         $templateHTML .= '<div class="buttonForm">';
@@ -982,109 +547,17 @@ class _model {
      * @param  array $arrayPost Paramètres qui ont été récupérés
      * @return boolean True si tout est OK sinon False
      */
-    function verifParamFormulaire($arrayPost){
+    function verifParamsFormulaire($arrayPost){
         //On parcourt les champs de l'objet
-        foreach ($this->fields as $key => $value) {
-            if(isSet($arrayPost[$key])){
-                //On vérifie qu'un input HTML correspond à ce champ
-                if(isSet($this->fields[$key]["type_input"])){
-                    //Si on est sur un mot de passe, on vérifie qu'il y a une confirmation
-                    if($this->fields[$key]["type_input"] === "password" && !isSet($arrayPost[$key."Confirm"])){
-                        return false;
-                    }
-                }
-            }
-        }
-
-        return $this->setFromPost($arrayPost);
-    }
-
-    
-    /**
-     * setFromPost
-     *
-     * @param  array $arrayPost Paramètres qui ont été récupérés
-     * @return boolean True si tout est OK sinon False
-     */
-    function setFromPost($arrayPost){
-        //On parcourt les champs de l'objet
-        foreach ($this->fields as $key => $value) {
-            if(isSet($arrayPost[$key])){
-                //On vérifie qu'un input HTML correspond à ce champ
-                if(isSet($this->fields[$key]["type_input"])){
-                    if($this->fields[$key]["type_input"] === "password"){
-                        if($arrayPost[$key] != "") {
-                            if(!$this->set($key,$arrayPost[$key])){
-                                return false;
-                            }
-                        }
-                    }
-                    else {
-                        if(!$this->set($key,$arrayPost[$key])){
-                            return false;
-                        }
-                    }
+        foreach ($this->fields as $keyField => $field) {
+            // Si le champ est bien dans les paramètres fournis
+            if(isSet($arrayPost[$keyField])){
+                if(!$field->setValueForm($arrayPost[$keyField],$arrayPost)) {
+                    return false;
                 }
             }
         }
 
         return true;
-    }
-    
-    /**
-     * Vérifie si l'utilisateur a le droit de consulter l'élément
-     *
-     * @return boolean True si tout est OK sinon False
-     */
-    function verifPartitionnement(){
-        $objSession = _session::getSession();
-        //On parcourt tous les champs
-        foreach ($this->fields as $cleChamp => $infosChamp) {
-            //Si c'est un lien (objet)
-            if($infosChamp["type"] === "object") {
-                //Si le lien correspond à la table des utilisateurs
-                if($infosChamp["nom_objet"] === $objSession->getTableUser()) {
-                    //Si l'id correspond à l'id de l'utilisateur, c'est bon
-                    if($this->values[$cleChamp] === $objSession->id())
-                        return true;
-                }
-            }
-        }
-
-        //Cas si on agit sur le compte
-        if($this->table === $objSession->getTableUser()){
-            if($this->id() === $objSession->id())
-                return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Ajoute les conditions de filtre pour le partitionnement de données de l'utilisateur connecté
-     *
-     * @return mixed Clause du filtre de la requête, False s'il y a une erreur
-     */
-    function setFiltrePartitionnement(){
-        //On initialise le champ de retour et le filtre
-        $strRequete = "";
-        $arrayFiltre = [];
-
-        //On parcourt tous les champs
-        foreach ($this->fields as $cleChamp => $infosChamp) {
-            //Si c'est un lien (objet)
-            if($infosChamp["type"] === "object") {
-                $objSession = _session::getSession();
-                //Si le lien correspond à la table des utilisateurs
-                if($infosChamp["nom_objet"] === $objSession->getTableUser()) {
-                     $arrayFiltre[] = " `$cleChamp` = ".$objSession->id(). " ";
-                }
-            }
-        }
-
-        if(!empty($arrayFiltre))
-            $strRequete .= "( ".implode(" OR ",$arrayFiltre). " ) ";
-
-        return $strRequete;
     }
 }
