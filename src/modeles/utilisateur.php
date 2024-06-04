@@ -309,7 +309,7 @@ class utilisateur extends _model {
         //On vérifie que le mot de passe et sa confirmation correspondent
         if($strPassword === $strConfirmPassword){
             //S'ils correspondent on met à jours le mot de passe
-            $this->set_password($strPassword);
+            $this->set("u_password",$strPassword);
             //On remet à zéro les éléments du token de réinitialisation
             $this->set("u_selector_reini_password","");
             $this->set("u_token_reini_password","");
