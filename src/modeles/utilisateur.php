@@ -1,6 +1,30 @@
 <?php
 
 /**
+ * 
+ * Attributs disponibles
+ * @property $table Nom de la table du champ
+ * @property $champ_id Clé de la table
+ * @property $fieldLogin Champ du login clé de connexion d'un utilisateur
+ * @property $fieldPassword Champ du password clé de connexion d'un utilisateur
+ * @property $fieldSelectorToken Champ clé de sélection du token (réini de mot de passe)
+ * @property $fieldToken Password Champ du token (réini de mot de passe)
+ * @property $fieldExpirationToken Champ date d'expiration du token (réini de mot de passe)
+ * @property $arrayURL Tableau des URLs de gestion de la connexion
+ * 
+ * Méthodes disponibles
+ * @method connexion() Vérification des informations de connexion de l'utilisateur
+ * @method formulaireConnexion() Génération du formulaire de connexion en HTML
+ * @method formulaireReiniPassword() Génération du formulaire de réinitialisation du mot de passe en HTML
+ * @method formulaireNewPassword() Génération du formulaire de redéfinition du mot de passe en HTML
+ * @method demandeReiniPassword() Lance une demande de réinitialisation du mot de passe pour un login donné
+ * @method envoiMailReini() Envoie le mail de réinitialisation avec le lien
+ * @method verifTokenReiniPassword() Vérifie que le token de réinitialisation du mot de passe est valide
+ * @method updateNewPassword() Définit le nouveau mot de passe de l'utilisateur
+ * 
+ */
+
+/**
  * Classe utilisateur : classe de gestion des utilisateurs
  */
 
@@ -10,15 +34,18 @@ class utilisateur extends _model {
      * Attributs
      */
 
-    //Nom de la table dans la BDD
+    // Nom de la table dans la BDD
     protected $table = "utilisateur";
-    //Clé de la table
+    // Clé de la table
     protected $champ_id = "u_id";
-    //Nom des champs clés de connexion d'un utilisateur
+    // Nom des champs clés de connexion d'un utilisateur
     protected $fieldLogin = "u_email";
     protected $fieldPassword = "u_password";
+    protected $fieldSelectorToken = "u_selector_reini_password";
+    protected $fieldToken = "u_password";
+    protected $fieldExpirationToken = "u_email";
 
-    //URLs de gestion de la connexion
+    // URLs de gestion de la connexion
     protected $arrayURL = [
         "formLogin" => "index.php",
         "login" => "se_connecter.php",
@@ -33,16 +60,6 @@ class utilisateur extends _model {
      * Méthodes
      */
      
-     /**
-      * Enregistre le mot de passe de l'utilisateur
-      *
-      * @param  string $valeur Valeur du mot de passe à enregistrer
-      * @return void
-      */
-     function set_password($valeur){
-        $this->values[$this->fieldPassword] = password_hash($valeur,PASSWORD_BCRYPT);
-     }
-
     /**
       * Retourne l'URL du formulaire passé en paramètre
       *
@@ -223,7 +240,7 @@ class utilisateur extends _model {
         ]);
 
         //On construit la requête UPDATE
-        $strRequeteReini = "UPDATE `$this->table` SET `u_selector_reini_password` = :selector, u_token_reini_password = :token, u_expiration_reini_password	=  :expiration 
+        $strRequeteReini = "UPDATE `$this->table` SET `$this->fieldSelectorToken` = :selector, `$this->fieldToken` = :token, `$this->fieldExpirationToken`	=  :expiration 
             WHERE `$this->champ_id` = :userid";
         $paramReini = [
             ':userid' => $this->id(),
@@ -267,8 +284,8 @@ class utilisateur extends _model {
      */
     function verifTokenReiniPassword($strLogin, $strSelector, $strToken){
         //On prépare la requête
-        $strRequete = "SELECT `$this->champ_id`,`u_token_reini_password` FROM `$this->table` WHERE `u_selector_reini_password` = :selector AND `$this->fieldLogin` = :login 
-            AND u_expiration_reini_password >= NOW()";
+        $strRequete = "SELECT `$this->champ_id`,`$this->fieldToken` FROM `$this->table` WHERE `$this->fieldSelectorToken` = :selector AND `$this->fieldLogin` = :login 
+            AND `$this->fieldExpirationToken` >= NOW()";
         $param = [
             ":selector" => $strSelector,
             ":login" => $strLogin
@@ -288,7 +305,7 @@ class utilisateur extends _model {
         $arrayResults = $objRequete->objet->fetchAll(PDO::FETCH_ASSOC);
         if (!empty($arrayResults)) {
             $calc = hash('sha256', hex2bin($strToken));
-            if (hash_equals($calc, $arrayResults[0]['u_token_reini_password'])) {
+            if (hash_equals($calc, $arrayResults[0][$this->fieldToken])) {
                 //Si le token est valide on charge l'utilisateur et on retourne True
                 $this->load($arrayResults[0][$this->champ_id]);
                 return true;
@@ -309,11 +326,11 @@ class utilisateur extends _model {
         //On vérifie que le mot de passe et sa confirmation correspondent
         if($strPassword === $strConfirmPassword){
             //S'ils correspondent on met à jours le mot de passe
-            $this->set("u_password",$strPassword);
+            $this->set($this->fieldPassword,$strPassword);
             //On remet à zéro les éléments du token de réinitialisation
-            $this->set("u_selector_reini_password","");
-            $this->set("u_token_reini_password","");
-            $this->set("u_expiration_reini_password","");
+            $this->set($this->fieldSelectorToken,"");
+            $this->set($this->fieldToken,"");
+            $this->set($this->fieldExpirationToken,"");
 
             return $this->update();
         }
