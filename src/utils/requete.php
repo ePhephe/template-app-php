@@ -171,7 +171,7 @@ class _requete {
       */
     static function bdd() {
         if(empty(static::$bdd)) {
-            static::$bdd = new PDO("mysql:host=localhost;dbname=projets_pizza_mdurand;charset=UTF8","mdurand","ac2dmTM8q?M");;
+            static::$bdd = new PDO("mysql:host=localhost;dbname=XXX;charset=UTF8","XXX","XXX");;
             static::$bdd->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING);
             return static::$bdd;
         }
