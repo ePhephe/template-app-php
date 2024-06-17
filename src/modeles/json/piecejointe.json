@@ -1,0 +1,120 @@
+{
+    "type": "modele",
+    "table": "piecejointe",
+    "champ_id": "pj_id",
+    "fields": [
+        {
+            "name": "pj_nom_fichier",
+            "type": "text",
+            "libelle": "Nom du fichier",
+            "nomObjet": "",
+            "unicite": true,
+            "visibilite": true,
+            "input": {
+                "name": "pj_nom_fichier",
+                "id": "pj_nom_fichier",
+                "placeholder": "",
+                "type": "file",
+                "step": "",
+                "confirmationNeeded": false,
+                "accept": "image/*"
+            },
+            "contraintes": {
+                "min_length": 1,
+                "max_length": 100
+            }
+        },
+        {
+            "name": "pj_type_fichier",
+            "type": "text",
+            "libelle": "Type de fichier",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": true,
+            "contraintes": {
+                "min_length": 1,
+                "max_length": 30
+            }
+        },
+        {
+            "name": "pj_taille",
+            "type": "integer",
+            "libelle": "Taille du fichier",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": true,
+            "contraintes": {
+                "min": 1,
+                "max": 9999999999
+            }
+        },
+        {
+            "name": "pj_chemin",
+            "type": "text",
+            "libelle": "Chemin",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": true,
+            "contraintes": {
+                "min_length": 1,
+                "max_length": 100
+            }
+        },
+        {
+            "name": "pj_date_creation",
+            "type": "datetime",
+            "libelle": "Date de création du fichier",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": true,
+            "formats": {
+                "bdd": "Y-m-d H:i:s",
+                "affichage": "d/m/Y H:i:s"
+            }
+        },
+        {
+            "name": "pj_statut",
+            "type": "text",
+            "libelle": "",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": false,
+            "contraintes": {
+                "min_length": 16,
+                "max_length": 16
+            },
+            "listeCleValeur": [
+                {
+                    "cle": "V",
+                    "valeur": "Valide"
+                },
+                {
+                    "cle": "S",
+                    "valeur": "Supprimé"
+                }
+            ]
+        }
+    ],
+    "actions": [
+        {
+            "action": "create",
+            "url": "creer_pj"
+        },
+        {
+            "action": "read",
+            "url": "detail_pj"
+        },
+        {
+            "action": "update",
+            "url": "modifier_pj"
+        },
+        {
+            "action": "delete",
+            "url": "supprimer_pj"
+        },
+        {
+            "action": "list",
+            "url": "lister_pj"
+        }
+    ]
+}

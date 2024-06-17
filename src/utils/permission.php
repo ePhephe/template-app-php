@@ -11,104 +11,40 @@
      */
 
     protected static $objPermission; //Objet unique sur la classe permission
-    protected $urlRedirect = "accueil";
+    protected $urlRedirect = "accueil.php";
 
     //Constante pour définir les permissions
     protected const PERMISSIONS = [
-        "ROLE_TECHNICIEN" => [
-            "ticket" => [
-                "create" => ["autorised" => false, "partitionnement" => true],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => true, "partitionnement" => false],
-                "delete" => ["autorised" => false, "partitionnement" => true],
-            ],
-            "vente" => [
-                "create" => ["autorised" => true, "partitionnement" => false],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => true, "partitionnement" => false],
-                "delete" => ["autorised" => true, "partitionnement" => false],
-            ],
-            "utilisateur" => [
-                "create" => ["autorised" => true, "partitionnement" => false],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => true, "partitionnement" => false],
-                "delete" => ["autorised" => true, "partitionnement" => false],
-            ],
-            "produit" => [
-                "create" => ["autorised" => false, "partitionnement" => true],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => false, "partitionnement" => true],
-                "delete" => ["autorised" => false, "partitionnement" => true],
-            ],
-            "message" => [
-                "create" => ["autorised" => true, "partitionnement" => false],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => true, "partitionnement" => true],
-                "delete" => ["autorised" => true, "partitionnement" => true],
-            ]
-        ],
-        "ROLE_VENDEUR" => [
-            "ticket" => [
-                "create" => ["autorised" => false, "partitionnement" => true],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => true, "partitionnement" => false],
-                "delete" => ["autorised" => false, "partitionnement" => true],
-            ],
-            "vente" => [
-                "create" => ["autorised" => true, "partitionnement" => false],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => true, "partitionnement" => false],
-                "delete" => ["autorised" => true, "partitionnement" => false],
-            ],
-            "utilisateur" => [
-                "create" => ["autorised" => true, "partitionnement" => false],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => true, "partitionnement" => false],
-                "delete" => ["autorised" => true, "partitionnement" => false],
-            ],
-            "produit" => [
-                "create" => ["autorised" => false, "partitionnement" => true],
-                "read"  => ["autorised" => false, "partitionnement" => true],
-                "update" => ["autorised" => false, "partitionnement" => true],
-                "delete" => ["autorised" => false, "partitionnement" => true],
-            ],
-            "message" => [
-                "create" => ["autorised" => true, "partitionnement" => false],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => true, "partitionnement" => true],
-                "delete" => ["autorised" => true, "partitionnement" => true],
-            ]
-        ],
-        "ROLE_CLIENT" => [
-            "ticket" => [
+        "ALL" => [
+            "pizza" => [
                 "create" => ["autorised" => true, "partitionnement" => true],
                 "read"  => ["autorised" => true, "partitionnement" => true],
                 "update" => ["autorised" => true, "partitionnement" => true],
-                "delete" => ["autorised" => true, "partitionnement" => true],
+                "delete" => ["autorised" => true, "partitionnement" => true]
             ],
-            "vente" => [
-                "create" => ["autorised" => false, "partitionnement" => true],
+            "composition" => [
+                "create" => ["autorised" => true, "partitionnement" => true],
+                "read"  => ["autorised" => true, "partitionnement" => true],
+                "update" => ["autorised" => true, "partitionnement" => true],
+                "delete" => ["autorised" => true, "partitionnement" => true]
+            ],
+            "ingredient" => [
+                "create" => ["autorised" => false, "partitionnement" => false],
+                "read"  => ["autorised" => true, "partitionnement" => false],
+                "update" => ["autorised" => false, "partitionnement" => false],
+                "delete" => ["autorised" => false, "partitionnement" => false],
+            ],
+            "piecejointe" => [
+                "create" => ["autorised" => true, "partitionnement" => true],
                 "read"  => ["autorised" => true, "partitionnement" => true],
                 "update" => ["autorised" => false, "partitionnement" => true],
                 "delete" => ["autorised" => false, "partitionnement" => true],
             ],
             "utilisateur" => [
-                "create" => ["autorised" => false, "partitionnement" => true],
+                "create" => ["autorised" => false, "partitionnement" => false],
                 "read"  => ["autorised" => true, "partitionnement" => true],
                 "update" => ["autorised" => true, "partitionnement" => true],
-                "delete" => ["autorised" => true, "partitionnement" => true],
-            ],
-            "produit" => [
-                "create" => ["autorised" => false, "partitionnement" => true],
-                "read"  => ["autorised" => false, "partitionnement" => true],
-                "update" => ["autorised" => false, "partitionnement" => true],
                 "delete" => ["autorised" => false, "partitionnement" => true],
-            ],
-            "message" => [
-                "create" => ["autorised" => true, "partitionnement" => false],
-                "read"  => ["autorised" => true, "partitionnement" => false],
-                "update" => ["autorised" => true, "partitionnement" => true],
-                "delete" => ["autorised" => true, "partitionnement" => true],
             ]
         ]
     ];
@@ -156,7 +92,10 @@
             $objUser = $objSession->userConnected();
         }
 
-        return self::PERMISSIONS[$objUser->get("u_role_user")][$objet][$action]["autorised"];
+        // On regarde si on a un champ rôle sur l'utilisateur
+        $role = ($objUser->get("u_role_user")->is()) ? $objUser->get("u_role_user") : "ALL";
+
+        return self::PERMISSIONS[$role][$objet][$action]["autorised"];
     }
 
     /**
@@ -179,7 +118,10 @@
             $objUser = $objSession->userConnected();
         }
 
-        return self::PERMISSIONS[$objUser->get("u_role_user")][$objet][$action]["partitionnement"];
+        // On regarde si on a un champ rôle sur l'utilisateur
+        $role = ($objUser->get("u_role_user")->is()) ? $objUser->get("u_role_user") : "ALL";
+
+        return self::PERMISSIONS[$role][$objet][$action]["partitionnement"];
     }
  }
 

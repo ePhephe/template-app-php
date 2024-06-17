@@ -1,7 +1,20 @@
 RewriteEngine On
 
-# Redirige toutes les requêtes sans nom de page fourni vers index.php sans paramètre
-RewriteRule ^$ index.php [L,QSA]
+# Réécrire l'URL www.test.fr en www.test.fr/index.php?page=index
+RewriteRule ^$ /index.php?page=index [L,QSA]
 
-# Redirige toutes les requêtes avec un nom de page vers index.php avec le paramètre page
-RewriteRule ^([^/]+).php$ index.php?page=$1 [L,QSA]
+# Réécrire l'URL www.test.fr/index.php en www.test.fr/index.php?page=index
+RewriteCond %{THE_REQUEST} /index\.php [NC]
+RewriteCond %{QUERY_STRING} !page=
+RewriteRule ^index\.php$ /index.php?page=index [L,QSA]
+
+# Réécrire les URL de la forme www.test.fr/xxx.php en www.test.fr/index.php?page=xxx
+RewriteCond %{REQUEST_URI} ^/([^/]+)\.php$
+RewriteCond %{REQUEST_URI} !^/index\.php$
+RewriteRule ^([^/]+)\.php$ /index.php?page=$1 [QSA,L]
+
+# Réécrire les URL avec un chemin avant le fichier .php
+# Exemple : www.test.fr/test1/test2/test3/xxx.php devient www.test.fr/index.php?page=xxx
+RewriteCond %{REQUEST_URI} ^(.*/)?([^/]+)\.php$
+RewriteCond %{REQUEST_URI} !^/index\.php$
+RewriteRule .*/([^/]+)\.php$ /index.php?page=$1 [QSA,L]

@@ -13,6 +13,7 @@
  * Méthodes disponibles
  * @method is() Retourne l'information si l'objet est chargé
  * @method get() Retourne l'objet du champ passé en paramètre
+ * @method getFields() Retourne le tableau des objets fields
  * @method getToArray() Retourne la valeur pour tous les champs, sous forme d'un tableau
  * @method id() Retourne l'identifiant de l'objet courant
  * @method champ_id() Retourne le champ identifiant de l'objet courant
@@ -63,6 +64,7 @@ class _model {
      * Constructeur de l'objet
      *
      * @param  integer $id Identifiant de l'objet à charger
+     * @param  boolean $partitionement Si l'objet est soumis au partitionnement de données
      * @return void
      */
     function __construct($id = null, $partitionement = false) {
@@ -89,7 +91,7 @@ class _model {
      */
     protected function addField($infosChamp) {
         // On instancie un objet _field du champ
-        $this->fields[$infosChamp->name] = new _field($infosChamp);
+        $this->fields[$infosChamp->name] = new _field($infosChamp,$this->table);
     }
     
     /**
@@ -107,12 +109,16 @@ class _model {
         // On récupère le champ qui correspond à l'id
         $this->champ_id = $infosModele->champ_id;
         // On parcourt les liens pour en construire le tableau
-        foreach ($infosModele->links as $value) {
-            $this->links[] = [$value->table => $value->cle];
+        if(isSet($infosModele->links)) {
+            foreach ($infosModele->links as $value) {
+                $this->links[] = [$value->table => $value->cle];
+            }
         }
         // On parcourt les actions pour en construire le tableau
-        foreach ($infosModele->actions as $value) {
-            $this->actions[] = [$value->action => $value->url];
+        if(isSet($infosModele->actions)) {
+            foreach ($infosModele->actions as $value) {
+                $this->actions[$value->action] = $value->url;
+            }
         }
         
         // On parcourt tous les champs présent dans le fichier
@@ -156,7 +162,28 @@ class _model {
         if(method_exists($this,"get_$fieldName"))
             return call_user_func([$this,"get_$fieldName"]);
 
-        return $this->fields[$fieldName];
+        if(isSet($this->fields[$fieldName]))
+            return $this->fields[$fieldName];
+        else
+            return new _field();
+    }
+
+    /**
+     * Retourne la valeur du champ
+     *
+     * @return mixed Valeur du champ
+     */
+    function getValue($fieldName) {
+        return $this->fields[$fieldName]->getValue();
+    }
+
+    /**
+     * Retourne le tableau des objets fields
+     *
+     * @return array Tableau des objets fields
+     */
+    function getFields() {
+        return $this->fields;
     }
 
     /**
@@ -255,6 +282,7 @@ class _model {
      */
     function loadFromTab($data) {
         //On parcourt tous les champs
+        
         foreach($this->fields as $fieldName => $field){
             //Pour chaque champ on indique la valeur dans l'attribut de l'objet correspondant
             $this->fields[$fieldName]->setValue($data[$fieldName]);
@@ -284,10 +312,12 @@ class _model {
             [$this->table => $this],
             $this->partitionement,
             [
-                "champ" => $this->champ_id,
-                "valeur" => $id,
-                "operateur" => "=",
-                "table" => $this->table
+                [
+                    "champ" => $this->champ_id,
+                    "valeur" => $id,
+                    "operateur" => "=",
+                    "table" => $this->table
+                ]
             ]
         );
 
@@ -350,10 +380,12 @@ class _model {
             [$this->table => $this],
             $this->partitionement,
             [
-                "champ" => $this->champ_id,
-                "valeur" => $this->id,
-                "operateur" => "=",
-                "table" => $this->table
+                [
+                    "champ" => $this->champ_id,
+                    "valeur" => $this->id,
+                    "operateur" => "=",
+                    "table" => $this->table
+                ]
             ]
         );
            
@@ -376,12 +408,13 @@ class _model {
             $this->fields,
             $this->table,
             [$this->table => $this],
-            $this->partitionement,
-            [
-                "champ" => $this->champ_id,
-                "valeur" => $this->id,
-                "operateur" => "=",
-                "table" => $this->table
+            $this->partitionement,[
+                [
+                    "champ" => $this->champ_id,
+                    "valeur" => $this->id,
+                    "operateur" => "=",
+                    "table" => $this->table
+                ]
             ]
         );
 
@@ -443,9 +476,10 @@ class _model {
      * @param  string $action Action qui sera derrière le formulaire (create,read,update,delete)
      * @param  boolean $json Traitement du formulaire en ajax (True ou False - Valeur par défaut)
      * @param  array $listInput Liste de champs spécifiques attendus (Tableau vide - Valeur par défaut)
+     * @param  array $others Autres paramètres supplémentaires à utiliser
      * @return mixed Code HTML ou false s'il y a une erreur
      */
-    function getFormulaire($action,$json=false,$listInput=[]){
+    function getFormulaire($action, $json=false, $withButton=true, $paramAction =[], $listInput=[], $others = []){
         // On initialise le template HTML
         $templateHTML = '';
         // Quelle vision des champ (vide, readonly, disabled)
@@ -520,20 +554,37 @@ class _model {
         if($json === true) $paramURL["json"] = true;
 
         // Si on a des paramètres d'URL, on les mets en forme et on les ajoute à l'URL 
-        if(!empty($paramURL)) $urlAction .= "?". http_build_query($paramURL);
-            
-        //On commence le formulaire
-        $templateHTML .= '<form action="' . $urlAction . '" method="post" id="form_' . $this->table . '">';
+        if(!empty($paramURL)) $urlAction .= "?". http_build_query(array_merge($paramURL,$paramAction));
 
+        // On prépare un template pour les inputs
+        $templateInputHTML = "";
+        // On prépare le enctype
+        $enctype = "";
         //On parcourt tous les champs et on demande le code HTML de chacun
         foreach ($this->fields as $keyField => $field) {
-            $templateHTML .= $field->getElementFormulaire($listInput[$keyField], $acces);
+            $input = (isSet($listInput[$keyField])) ? $listInput[$keyField] : [];
+            // On test si on a besoin de mettre l'encodage pour les pièce jointes dans le cas où un input file serait présent
+            if(!empty($field->get("input"))) {
+                if($field->get("input")["type"] === "file") {
+                    $enctype = 'enctype="multipart/form-data"';
+                }
+            }
+            
+            $templateInputHTML .= $field->getElementFormulaire($input, $acces, $others);
         }
 
-        $templateHTML .= '<div class="buttonForm">';
-        $templateHTML .= $buttonAnnuler;
-        $templateHTML .= $buttonSubmit;
-        $templateHTML .= '</div>';
+        // On construit le formulaire
+        // En-tête
+        $templateHTML .= '<form action="' . $urlAction . '" method="post" id="form_' . $this->table . '" ' . $enctype . '>';
+        // Inputs
+        $templateHTML .= $templateInputHTML;
+        // Boutons
+        if($withButton === true) {
+            $templateHTML .= '<div class="buttonForm">';
+            $templateHTML .= $buttonAnnuler;
+            $templateHTML .= $buttonSubmit;
+            $templateHTML .= '</div>';
+        }
 
         //On termine le formulaire
         $templateHTML .= '</form>';

@@ -9,7 +9,7 @@ class _session {
     protected $tableUser = "utilisateur";
     protected $objUser;
     protected $id = 0;
-    protected $urlRedirect = "index";
+    protected $urlRedirect = "index.php";
 
     protected static $objSession; //Objet unique sur la classe session
 

@@ -22,8 +22,18 @@ class _controller {
     protected $typeRetour = "template"; // json, fragment ou template (défaut)
     // Nom du template
     protected $template = "";
+    // Tableau de paramètre du template
+    protected $paramTemplate = [ // ["head" => ["title" => "", "metadescription" => "", "lang" => ""], "is_nav" => true, "is_footer" => true]
+        "head" => [
+            "title" => "", 
+            "metadescription" => "", 
+            "lang" => ""
+        ], 
+        "is_nav" => true, 
+        "is_footer" => true
+    ]; 
     // Retour du controller
-    protected $retour = "";
+    protected $retour = [];
     // Paramètres en sortie du controller
     protected $paramSortie = []; // ["nom_param1"=>["required"=>true],"nom_param2"=>["required"=>false]]
     // Besoin d'être connecté
@@ -94,7 +104,43 @@ class _controller {
      * @return boolean True si tout s'est bien passé, False si une erreur est survenu
      */
     function verifParams(){
-        //Fonction à surchargée dans la classe fille
+        // A surcharger ou compléter dans la classe fille //
+        
+        // On parcourt tous les paramètres attendus en entrée
+        foreach ($this->paramEntree as $param => $infosParam) {
+            // On vérifie déjà s'ils ne sont pas déjà dans les paramètres
+            if(!isSet($this->parametres[$param])) {
+                // On récupère les informations de la method correspondante
+                $superglobal = $GLOBALS[$infosParam["method"]];
+
+                // Si on est dans le cas d'un paramètre qui serait un formulaire entier et qu'il est required TRUE
+                if($param === "form" && $infosParam["required"] === true) {
+                    $superglobal = array_merge($superglobal,$_FILES);
+                    // On vérifie que la méthode par laquelle passe le formulaire n'est pas vide
+                    if(empty($superglobal)) {
+                        return false;
+                    }
+                    else {
+                        $this->parametres[$param] = $superglobal;
+                    }
+                }
+                else if($param === "form" && !empty($superglobal)){
+                    // On récupère les informations de la method correspondante
+                    $superglobal = array_merge($superglobal,$_FILES);
+                    // Si le paramètre est un formulaire non requis et présent, on le récupère
+                    $this->parametres[$param] = $superglobal;
+                }
+                else if($infosParam["required"] === true && !isSet($superglobal[$param])) {
+                    // Si le paramètre est required TRUE, on test si il est bien présent
+                    return false;
+                }
+                else if(isSet($superglobal[$param])){
+                    // Si le paramètre est présent dans la variable globale, on la récupère
+                    $this->parametres[$param] = $superglobal[$param];
+                }
+            }
+        }
+
         return true;
     }
 
@@ -104,17 +150,30 @@ class _controller {
      * @return boolean True si tout s'est bien passé, False si une erreur est survenu
      */
     function execute(){
-        //Fonction à surchargée dans la classe fille
-        /*
-        // Code à executer après les traitements du controller si on est en template ou fragment
-        $objTemplate = new _template();
-        $objTemplate->getHtmlContent("template");
+        //Fonction à surchargée ou complétée dans la classe fille
 
-        // Code à executer après les traitements du controller si on est en json
-        echo json_encode($this->retour);
-        */
+        // On teste si la validation des paramètres se passe bien sinon on retourne false
+        if(!$this->verifParams()) {
+            return false;
+        }
+    }
 
-        return true;
+    /**
+     * Affichage du rendu du controller
+     *
+     * @return void
+     */
+    function render(){
+        // On regarde si on est dans un cas de retour json ou non
+        if($this->get("typeRetour") != "json") {
+            // Si on ne souhaite pas de json, on va chercher le template
+            $objTemplate = new _template($this->get("template"),array_merge($this->get("paramSortie"),$this->get("retour")));
+            $objTemplate->getHtmlContent($this->get("typeRetour"),$this->paramTemplate["head"], $this->paramTemplate["is_nav"], $this->paramTemplate["is_footer"]);
+        }
+        else {
+            // Sinon on affiche le json
+            echo json_encode(array_merge($this->get("paramSortie"),$this->get("retour")));
+        }
     }
 
     /**
@@ -172,8 +231,8 @@ class _controller {
                     $objet = new $nomObjet ();
                     // On récupère le partitionnement pour cette permission
                     $partitionnement = $this->permission->getPartitionnement($nomObjet,$nomAction);
-                    if (isset($this->params[$objet->champ_id()]) && $partitionnement===true) {
-                        $objet->load($this->params[$objet->champ_id()]);
+                    if (isset($this->parametres[$objet->champ_id()]) && $partitionnement===true) {
+                        $objet->load($this->parametres[$objet->champ_id()]);
                         if(!$objet->verifPartitionnement()){
                             $this->makeRetour(false,"non-autorised","Vous n'êtes pas autorisé !");
                             return false;

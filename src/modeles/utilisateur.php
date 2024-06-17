@@ -3,8 +3,7 @@
 /**
  * 
  * Attributs disponibles
- * @property $table Nom de la table du champ
- * @property $champ_id Clé de la table
+ * @property $table Nom de la table
  * @property $fieldLogin Champ du login clé de connexion d'un utilisateur
  * @property $fieldPassword Champ du password clé de connexion d'un utilisateur
  * @property $fieldSelectorToken Champ clé de sélection du token (réini de mot de passe)
@@ -36,14 +35,12 @@ class utilisateur extends _model {
 
     // Nom de la table dans la BDD
     protected $table = "utilisateur";
-    // Clé de la table
-    protected $champ_id = "u_id";
     // Nom des champs clés de connexion d'un utilisateur
     protected $fieldLogin = "u_email";
     protected $fieldPassword = "u_password";
     protected $fieldSelectorToken = "u_selector_reini_password";
-    protected $fieldToken = "u_password";
-    protected $fieldExpirationToken = "u_email";
+    protected $fieldToken = "u_token_reini";
+    protected $fieldExpirationToken = "u_expiration_reini_password";
 
     // URLs de gestion de la connexion
     protected $arrayURL = [
@@ -55,6 +52,11 @@ class utilisateur extends _model {
         "newPassword" => "new_password.php",
         "accueil" => "afficher_accueil.php"
     ];
+
+    // Nom des controllers d'action sur l'objet
+    protected $actions = [
+        "" => ""
+    ]; // ["action" => "nom_controller"]
 
     /**
      * Méthodes
@@ -225,6 +227,7 @@ class utilisateur extends _model {
         //On récupère la ligne de résultat dans une variable
         $arrayInfos = $arrayResultats[0];
         $this->load($arrayInfos[$this->champ_id]);
+        
 
         //On génère les éléments pour le token
         $strSelector = bin2hex(random_bytes(8));
@@ -234,7 +237,7 @@ class utilisateur extends _model {
         $dateExpiration->add(new DateInterval('PT01H'));
 
         //On génère l'URL à envoyer par mail
-        $urlToEmail = 'http://tickets.mdurand.mywebecom.ovh/'.$this->arrayURL["formNewPassword"].'?'.http_build_query([
+        $urlToEmail = 'http://pizza.mdurand.mywebecom.ovh/'.$this->arrayURL["formNewPassword"].'?'.http_build_query([
             'selector' => $strSelector,
             'validator' => bin2hex($strToken)
         ]);

@@ -4,50 +4,146 @@
     "champ_id": "u_id",
     "links": [
         {
-            "table": "user",
-            "cle": "v_user"
-        },
-        {
-            "table": "",
-            "cle": ""
+            "table": "piecejointe",
+            "cle": "u_ref_piecejointe_photo"
         }
     ],
     "fields": [
         {
-            "name": "",
-            "type": "",
-            "libelle": "",
+            "name": "u_nom",
+            "type": "text",
+            "libelle": "Nom",
             "nomObjet": "",
             "unicite": false,
+            "visibilite": true,
             "input": {
-                "name": "",
-                "id": "",
-                "placeholder": "",
-                "type": "",
+                "name": "u_nom",
+                "id": "u_nom",
+                "placeholder": "Nom d'utilisateur",
+                "type": "text",
                 "step": "",
                 "confirmationNeeded": false
             },
             "contraintes": {
-                "min": 0,
-                "max": 10000000,
                 "min_length": 1,
-                "max_length": 10000000
+                "max_length": 100
+            }
+        },
+        {
+            "name": "u_prenom",
+            "type": "text",
+            "libelle": "Prénom",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": true,
+            "input": {
+                "name": "u_prenom",
+                "id": "u_prenom",
+                "placeholder": "Prénom d'utilisateur",
+                "type": "text",
+                "step": "",
+                "confirmationNeeded": false
             },
+            "contraintes": {
+                "min_length": 1,
+                "max_length": 150
+            }
+        },
+        {
+            "name": "u_email",
+            "type": "text",
+            "libelle": "Adresse e-mail",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": true,
+            "input": {
+                "name": "u_email",
+                "id": "u_email",
+                "placeholder": "E-mail qui servira d'identifiant",
+                "type": "email",
+                "step": "",
+                "confirmationNeeded": true
+            },
+            "contraintes": {
+                "min_length": 1,
+                "max_length": 320
+            }
+        },
+        {
+            "name": "u_password",
+            "type": "password",
+            "libelle": "Mot de passe",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": false,
+            "input": {
+                "name": "u_password",
+                "id": "u_password",
+                "placeholder": "Mot de passe de 8 à 16 caractères",
+                "type": "password",
+                "step": "",
+                "confirmationNeeded": true
+            },
+            "contraintes": {
+                "min_length": 8,
+                "max_length": 16
+            }
+        },
+        {
+            "name": "u_ref_piecejointe_photo",
+            "type": "integer",
+            "libelle": "Photo de profil",
+            "nomObjet": "piecejointe",
+            "unicite": false,
+            "visibilite": true,
+            "input": {
+                "name": "u_ref_piecejointe_photo",
+                "id": "u_ref_piecejointe_photo",
+                "placeholder": "",
+                "type": "file",
+                "step": "",
+                "confirmationNeeded": false,
+                "accept": "image/*"
+            },
+            "contraintes": {
+                "size": 10000
+            }
+        },
+        {
+            "name": "u_selector_reini_password",
+            "type": "text",
+            "libelle": "",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": false,
+            "contraintes": {
+                "min_length": 16,
+                "max_length": 16
+            }
+        },
+        {
+            "name": "u_token_reini",
+            "type": "text",
+            "libelle": "",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": false,
+            "contraintes": {
+                "min_length": 50,
+                "max_length": 100
+            }
+        },
+        {
+            "name": "u_expiration_reini_password",
+            "type": "datetime",
+            "libelle": "",
+            "nomObjet": "",
+            "unicite": false,
+            "visibilite": false,
             "formats": {
-                "affichage": "d/m/Y H:i:s",
                 "bdd": "Y-m-d H:i:s",
-                "html": "d/m/Y H:i:s"
-            },
-            "listeCleValeur": [
-                {
-                    "cle": "",
-                    "valeur": ""
-                },
-                {
-                    "cle": "",
-                    "valeur": ""
-                }
-            ]
+                "affichage": "d/m/Y H:i:s"
+            }
         }
     ],
     "actions": [
